@@ -1,0 +1,225 @@
+{
+  "completed_at": "2026-11-08T15:11:06.797589+08:00",
+  "workspace": "/Users/shom/Downloads/livestore",
+  "validated_source_base_commit": "1bc6d888781ff1dd609a89cb41e4138ed93daebd",
+  "toolchain": {
+    "node": "24.22.2",
+    "pnpm": "12.15.0",
+    "bun": "1.3.11",
+    "portable_formatter": "oxfmt 0.77.0 via pnpm dlx"
+  },
+  "environment": {
+    "PATH_prefix": "/Users/shom/.nvm/versions/node/v24.22.2/bin:/Users/shom/Downloads/livestore/node_modules/.bin",
+    "WORKSPACE_ROOT": "/Users/shom/Downloads/livestore",
+    "LIVESTORE_PERF_PORT": "4183"
+  },
+  "related_tests": {
+    "unique_passed": 548,
+    "unique_skipped": 4,
+    "scopes": [
+      {
+        "scope": "@livestore/livestore",
+        "passed": 117,
+        "skipped": 1,
+        "logs": [
+          "livestore.log",
+          "registry-final.log"
+        ],
+        "count_note": "Full package 116 passed before one new isolation test; final Registry rerun covers that new test (25 passed, 1 skipped), without adding duplicate Registry executions."
+      },
+      {
+        "scope": "@livestore/react",
+        "passed": 58,
+        "skipped": 1,
+        "logs": [
+          "react.log"
+        ]
+      },
+      {
+        "scope": "@livestore/sqlite-wasm",
+        "passed": 74,
+        "skipped": 0,
+        "logs": [
+          "sqlite-wasm.log"
+        ]
+      },
+      {
+        "scope": "@livestore/common src/sync",
+        "passed": 55,
+        "skipped": 0,
+        "logs": [
+          "common-sync.log"
+        ]
+      },
+      {
+        "scope": "tests/package-common",
+        "passed": 155,
+        "skipped": 1,
+        "logs": [
+          "package-common.log",
+          "intent-layer-formatted.log"
+        ],
+        "count_note": "Full run had 159 passed including four loader tests subsequently moved unchanged to adapter-web. Current location counted below once. Final intent-layer rerun had 8 passed already included in this scope."
+      },
+      {
+        "scope": "@livestore/sync-cf",
+        "passed": 48,
+        "skipped": 0,
+        "logs": [
+          "sync-cf.log"
+        ]
+      },
+      {
+        "scope": "@livestore/common-cf",
+        "passed": 26,
+        "skipped": 1,
+        "logs": [
+          "common-cf.log"
+        ]
+      },
+      {
+        "scope": "tests/perf reporter and actual materializers",
+        "passed": 7,
+        "skipped": 0,
+        "logs": [
+          "reporter-materializers.log"
+        ]
+      },
+      {
+        "scope": "@livestore/utils NoopTracer",
+        "passed": 4,
+        "skipped": 0,
+        "logs": [
+          "noop-tracer.log"
+        ]
+      },
+      {
+        "scope": "@livestore/adapter-web SQLite loader",
+        "passed": 4,
+        "skipped": 0,
+        "logs": [
+          "adapter-web-unit.log"
+        ]
+      }
+    ],
+    "command_note": "Exact effective argv and exit codes are recorded in unit-first.json, unit-main.json, unit-repaired.json, final-checks.json, schema-fix-checks.json."
+  },
+  "browser_integration": {
+    "command": [
+      "pnpm",
+      "--dir",
+      "tests/integration",
+      "exec",
+      "vitest",
+      "run",
+      "src/tests/adapter-web/adapter-web.test.ts",
+      "-t",
+      "two tabs boot|rejects incomplete OPFS snapshots"
+    ],
+    "passed": 2,
+    "unselected_skipped": 3,
+    "exit_code": 0,
+    "log": "adapter-web.log"
+  },
+  "official_perf": {
+    "command": [
+      "./scripts/bin/mono",
+      "test",
+      "perf"
+    ],
+    "passed": 125,
+    "exit_code": 0,
+    "log": "perf-final-row-number.log",
+    "measurements": "perf-final-row-number.measurements.json",
+    "duration_reported": "3.6m",
+    "timing_policy": "Final run serialized after all unit tests/typechecks; no other validation workloads launched by this agent during it. Candidate acceptance only: no isolated current baseline was rerun, so no causal cross-session speedup claims.",
+    "observations": {
+      "create_10000_items_median_ms": 328,
+      "main_thread_heap_10000_items_MB": 26.01
+    }
+  },
+  "typecheck": {
+    "command": [
+      "./scripts/bin/mono",
+      "ts"
+    ],
+    "exit_code": 0,
+    "log": "mono-ts-final-schema.log"
+  },
+  "checks": {
+    "oxfmt": "oxfmt-final-check.log",
+    "diff": "diff-check.log",
+    "changeset": "changeset-status.log",
+    "intent": "intent-layer-formatted.log",
+    "all_exit_codes": 0
+  },
+  "superseded_runs": [
+    {
+      "log": "mono-ts-final.log",
+      "outcome": "TS2878 failure",
+      "resolution": "Moved cross-project loader test into its owning adapter-web package; added normal Vitest project. Final typecheck passed."
+    },
+    {
+      "log": "perf.log",
+      "outcome": "125 passed before sparse-id materializer fix",
+      "note": "Superseded for final acceptance; first run had brief concurrent unit/TS load. Measurements retained in perf-before-sparse-fix.measurements.json."
+    }
+  ],
+  "full_nix_lane": {
+    "status": "unavailable",
+    "reason": "devenv and nix are not installed; no global installations performed. Portable oxfmt does not substitute for custom oxlint or complete Nix CI.",
+    "attempts": "setup.json",
+    "commands_attempted": [
+      [
+        "devenv",
+        "shell",
+        "true"
+      ],
+      [
+        "devenv",
+        "tasks",
+        "run",
+        "lint:full:fix"
+      ],
+      [
+        "devenv",
+        "tasks",
+        "run",
+        "test:run"
+      ],
+      [
+        "devenv",
+        "tasks",
+        "run",
+        "ts:check"
+      ]
+    ],
+    "exit_codes": [
+      127,
+      127,
+      127,
+      127
+    ]
+  },
+  "commands_records": [
+    "setup.json",
+    "unit-first.json",
+    "unit-main.json",
+    "unit-repaired.json",
+    "final-checks.json",
+    "schema-fix-checks.json",
+    "format-final.json"
+  ],
+  "source_fingerprints": {
+    "tests/perf/test-app/src/schema.ts": "56bb81d19326aaaee79aaaf30cdc2e2081684d79e03cd0ed78575383c8b03941",
+    "tests/perf/tests/materializers.unit.ts": "a80fd42f4f3d41730d214c720e4330022d5a5dc47bfe02199714617550b6b611",
+    "packages/@livestore/adapter-web/src/web-worker/client-session/sqlite-loader.ts": "55d7cebe6f3d0b4d828a7e3b1854689b2e2f03e8d45436a815b4ba90dcbe54ca",
+    "packages/@livestore/livestore/src/store/StoreRegistry.ts": "ec2e79cb0e02051aecceb9ad4605b55ba7ecd037c7e66b3916782d2c5b3fbc2a"
+  },
+  "artifact_layout": {
+    "logs": "stdout.json keyed by original filename",
+    "command_records": "commands.json keyed by original filename",
+    "final_measurements": "measurements.json"
+  },
+  "validated_source_commit": "804ee196bdd064d5bef0667c54177df57839d824"
+}
