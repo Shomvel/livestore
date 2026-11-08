@@ -2,6 +2,9 @@ import * as process from 'node:process'
 
 import { defineConfig, devices } from '@playwright/test'
 
+const port = Number(process.env.LIVESTORE_PERF_PORT ?? 4173)
+const baseURL = `http://localhost:${port}`
+
 /**
  * Ensure Playwright tests are run via the mono CLI (or VS Code extension) to guarantee proper environment setup.
  */
@@ -19,7 +22,7 @@ export default defineConfig({
   workers: 1, // Run tests serially for more consistent performance measurements
   reportSlowTests: null,
   reporter: [process.env.CI !== undefined ? ['dot'] : ['line'], ['./tests/measurements-reporter.ts']],
-  use: { baseURL: 'http://localhost:4173' },
+  use: { baseURL },
   projects: [
     {
       name: 'chromium',
@@ -27,8 +30,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm test-app',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
+    command: `pnpm test-app --port ${port}`,
+    url: baseURL,
+    reuseExistingServer: false,
   },
 })

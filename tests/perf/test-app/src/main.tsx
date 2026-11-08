@@ -72,40 +72,37 @@ const generateRandomItems = (count: number): Items => {
 
 const RemoveIcon = <span>X</span>
 
-const ItemRow = React.memo(({ item }: { item: Item }) => {
-  const store = useAppStore()
-  const { selected } = store.useQuery(uiState$)
-  const isSelected = selected === item.id
-  const rowStyle = isSelected === true ? selectedRowStyle : defaultRowStyle
-  const handleSelect = React.useCallback(() => {
-    store.commit(events.uiStateSet({ selected: item.id }))
-  }, [store, item.id])
-  const handleRemove = React.useCallback(() => {
-    store.commit(events.itemDeleted({ id: item.id }))
-  }, [store, item.id])
-
-  return (
-    <tr style={rowStyle}>
-      <td>{item.id}</td>
-      <td>
-        <Button id={`select-${item.id}`} onClick={handleSelect}>
-          {item.label}
-        </Button>
-      </td>
-      <td>
-        <Button id={`remove-${item.id}`} onClick={handleRemove}>
-          {RemoveIcon}
-        </Button>
-      </td>
-      <td />
-    </tr>
-  )
-})
+const ItemRow = React.memo(({ item, isSelected }: { item: Item; isSelected: boolean }) => (
+  <tr style={isSelected === true ? selectedRowStyle : defaultRowStyle}>
+    <td>{item.id}</td>
+    <td>
+      <button type="button" id={`select-${item.id}`} data-action="select" data-item-id={item.id}>
+        {item.label}
+      </button>
+    </td>
+    <td>
+      <button type="button" id={`remove-${item.id}`} data-action="remove" data-item-id={item.id}>
+        {RemoveIcon}
+      </button>
+    </td>
+    <td />
+  </tr>
+))
 
 const ItemRowList = React.memo(() => {
   const store = useAppStore()
   const items = store.useQuery(allItems$)
-  return items.map((item) => <ItemRow key={item.id} item={item} />)
+  const { selected } = store.useQuery(uiState$)
+
+  // One selection subscription feeds memoized rows; only rows with a changed boolean prop render.
+  // A newly populated list mounts as one placement instead of scanning every pending row sibling.
+  return (
+    <React.Fragment key={items.length === 0 ? 'empty' : 'populated'}>
+      {items.map((item) => (
+        <ItemRow key={item.id} item={item} isSelected={selected === item.id} />
+      ))}
+    </React.Fragment>
+  )
 })
 
 const Button = React.memo(
@@ -136,6 +133,23 @@ const Main = () => {
   const handleClear = React.useCallback(() => {
     store.commit(events.allItemsDeleted())
   }, [store])
+  // Delegate row clicks so rows need no callback hooks or wrapper button components.
+  const handleRowClick = React.useCallback(
+    (event: React.MouseEvent<HTMLTableSectionElement>) => {
+      if (event.target instanceof Element === false) return
+      const button = event.target.closest<HTMLButtonElement>('button[data-action][data-item-id]')
+      if (button === null || event.currentTarget.contains(button) === false) return
+
+      const id = Number(button.dataset.itemId)
+      if (Number.isFinite(id) === false) return
+      if (button.dataset.action === 'select') {
+        store.commit(events.uiStateSet({ selected: id }))
+      } else if (button.dataset.action === 'remove') {
+        store.commit(events.itemDeleted({ id }))
+      }
+    },
+    [store],
+  )
 
   return (
     <div>
@@ -160,7 +174,7 @@ const Main = () => {
         </div>
       </div>
       <table>
-        <tbody>
+        <tbody onClick={handleRowClick}>
           <ItemRowList />
         </tbody>
       </table>

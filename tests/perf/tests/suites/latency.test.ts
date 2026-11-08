@@ -19,15 +19,22 @@ repeatSuite(
 
     test.afterEach(async ({ page }, testInfo) => {
       const measurement = await page.evaluate(() => {
-        return new Promise<number>((resolve) => {
-          new PerformanceObserver((entryList) => {
+        return new Promise<number | null>((resolve) => {
+          const observer = new PerformanceObserver((entryList) => {
             const entries = entryList.getEntries()
             const clickEntries = entries.filter((entry) => entry.name === 'click')
             // The last click entry is the one we are interested in
             const lastClickEntry = clickEntries.at(-1)
-            if (lastClickEntry == null) throw new Error('No click entry found')
+            if (lastClickEntry == null) return
+            clearTimeout(timeout)
+            observer.disconnect()
             resolve(lastClickEntry.duration) // Duration is provided rounded to the nearest 8 ms for privacy reasons
-          }).observe({
+          })
+          const timeout = setTimeout(() => {
+            observer.disconnect()
+            resolve(null)
+          }, 100)
+          observer.observe({
             type: 'event',
             buffered: true,
             // A durationThreshold of 16 ms is necessary to include more interactions,
@@ -38,7 +45,9 @@ repeatSuite(
         })
       })
 
-      testInfo.annotations.push({ type: 'measurement', description: measurement.toString() })
+      if (measurement !== null) {
+        testInfo.annotations.push({ type: 'measurement', description: measurement.toString() })
+      }
     })
 
     test('for creating 1,000 items', async ({ page }, testInfo) => {

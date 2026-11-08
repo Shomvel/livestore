@@ -16,6 +16,7 @@ Builds on [../requirements.md](../requirements.md).
 - **LS.SYS.VER.PERF-R02 Comparable measurements and regression budget:**
   Per-run measurements are persisted in machine-readable, cross-run
   comparable form, and CI fails on regression beyond a codified budget.
-  Adopted 2026-07-16 (interview); not yet built — see
+  Adopted 2026-07-16 (interview). Per-run JSON persistence is implemented;
+  baseline comparison, budgets and required-CI gating remain open — see
   [.delta/DELTA-001-perf-gating-missing.md](./.delta/DELTA-001-perf-gating-missing.md).
   `refines: LS-R14`
