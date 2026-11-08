@@ -12,8 +12,17 @@ const isServerRuntime = String(import.meta.env?.SSR) === 'true' || typeof window
 
 let sqlite3Promise: ReturnType<typeof loadSqlite3Wasm> | undefined
 
-if (isServerRuntime === false) {
-  sqlite3Promise = loadSqlite3Wasm()
+/** Shares WASM initialization across stores, but retries failed initialization on a later call. */
+export const loadSqlite3 = () => {
+  if (sqlite3Promise === undefined) {
+    sqlite3Promise = loadSqlite3Wasm()
+    void sqlite3Promise.catch(() => {
+      sqlite3Promise = undefined
+    })
+  }
+  return sqlite3Promise
 }
 
-export const loadSqlite3 = () => (isServerRuntime === true ? loadSqlite3Wasm() : (sqlite3Promise ?? loadSqlite3Wasm()))
+if (isServerRuntime === false) {
+  void loadSqlite3()
+}
