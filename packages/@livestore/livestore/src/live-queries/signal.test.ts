@@ -24,6 +24,37 @@ Vitest.describe('signal', () => {
     }),
   )
 
+  Vitest.live('does not recompute or notify for deeply equivalent writes', () =>
+    Effect.gen(function* () {
+      const filter$ = signal({ text: 'all' })
+      const result$ = computed((get) => ({ text: get(filter$).text }), { label: 'result$' })
+      const store = yield* makeTodoMvc({})
+      const observed: { text: string }[] = []
+      const queryInstances: { runs: number }[] = []
+      const unsubscribe = store.subscribe(result$, (result) => observed.push(result), {
+        onSubscribe: (query) => {
+          queryInstances.push(query)
+        },
+      })
+      const firstResult = observed[0]
+
+      store.setSignal(filter$, { text: 'all' })
+
+      expect(queryInstances[0]!.runs).toBe(1)
+      expect(observed).toHaveLength(1)
+      expect(observed[0]).toBe(firstResult)
+
+      store.setSignal(filter$, { text: 'active' })
+
+      expect(queryInstances[0]!.runs).toBe(2)
+      expect(observed).toHaveLength(2)
+      expect(observed[1]).not.toBe(firstResult)
+      expect(observed[1]).toEqual({ text: 'active' })
+
+      unsubscribe()
+    }),
+  )
+
   Vitest.live('counter example', () =>
     Effect.gen(function* () {
       const count$ = signal(0, { label: 'count$' })

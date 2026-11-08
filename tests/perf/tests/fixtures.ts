@@ -6,6 +6,8 @@ import { shouldRecordPerfProfile } from './utils.ts'
 export const test = base.extend<{ forEachTest: void }>({
   forEachTest: [
     async ({ page, browser }, use, testInfo) => {
+      testInfo.annotations.push({ type: 'browser version', description: browser.version() })
+
       // This code runs before every test.
       if (shouldRecordPerfProfile === true) {
         await browser.startTracing(page, { path: testInfo.outputPath('perf-profile.json') })

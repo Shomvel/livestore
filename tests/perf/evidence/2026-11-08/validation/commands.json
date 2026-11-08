@@ -1,0 +1,433 @@
+{
+  "final-checks.json": [
+    {
+      "name": "noop-tracer",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/utils",
+        "exec",
+        "vitest",
+        "run",
+        "src/NoopTracer.test.ts"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/utils\n\n\n Test Files  1 passed (1)\n      Tests  4 passed (4)\n   Start at  15:03:09\n   Duration  868ms (transform 114ms, setup 0ms, import 774ms, tests 4ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "intent-layer-final",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tests/package-common",
+        "exec",
+        "vitest",
+        "run",
+        "src/intent-layer"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/tests/package-common\n\n\n Test Files  1 passed (1)\n      Tests  8 passed (8)\n   Start at  15:03:10\n   Duration  213ms (transform 20ms, setup 0ms, import 63ms, tests 71ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "changeset-status",
+      "command": [
+        "pnpm",
+        "changeset:status"
+      ],
+      "exit_code": 0,
+      "tail": "$ changeset status\n\ud83e\udd8b  info Packages to be bumped at patch:\n\ud83e\udd8b  info \n\ud83e\udd8b  - @livestore/common\n\ud83e\udd8b  - @livestore/sqlite-wasm\n\ud83e\udd8b  - @livestore/livestore\n\ud83e\udd8b  - @livestore/sync-cf\n\ud83e\udd8b  - @livestore/webmesh\n\ud83e\udd8b  - @livestore/adapter-cloudflare\n\ud83e\udd8b  - @livestore/adapter-web\n\ud83e\udd8b  - @livestore/react\n\ud83e\udd8b  - livestore-example-web-email-client\n\ud83e\udd8b  - livestore-example-cloudflare-todomvc\n\ud83e\udd8b  - livestore-example-web-linearlite\n\ud83e\udd8b  - livestore-example-web-todomvc\n\ud83e\udd8b  - livestore-example-web-todomvc-script\n\ud83e\udd8b  - livestore-example-web-todomvc-sync-cf\n\ud83e\udd8b  - @livestore/common-cf\n\ud83e\udd8b  - @livestore/framework-toolkit\n\ud83e\udd8b  - @livestore/peer-deps\n\ud83e\udd8b  - @livestore/utils\n\ud83e\udd8b  - @livestore/utils-dev\n\ud83e\udd8b  - @livestore/wa-sqlite\n\ud83e\udd8b  ---\n\ud83e\udd8b  info NO packages to be bumped at minor\n\ud83e\udd8b  ---\n\ud83e\udd8b  info NO packages to be bumped at major\n"
+    }
+  ],
+  "format-final.json": [
+    {
+      "name": "oxfmt-final-fix",
+      "command": [
+        "pnpm",
+        "dlx",
+        "oxfmt@0.77.0",
+        "context/02-system/09-verification/03-performance/.delta/DELTA-001-perf-gating-missing.md",
+        "context/02-system/09-verification/03-performance/requirements.md",
+        "context/02-system/09-verification/03-performance/spec.md",
+        "tests/perf/README.md",
+        "tests/perf/evidence/2026-11-08/README.md",
+        "tests/perf/playwright.config.ts",
+        "tests/perf/test-app/src/main.tsx",
+        "tests/perf/test-app/src/schema.ts",
+        "tests/perf/tests/fixtures.ts",
+        "tests/perf/tests/materializers.unit.ts",
+        "tests/perf/tests/measurements-reporter.ts",
+        "tests/perf/tests/measurements-reporter.unit.ts",
+        "tests/perf/tests/suites/latency.test.ts",
+        "tests/perf/tests/vitest.config.ts"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "oxfmt-final-check",
+      "command": [
+        "pnpm",
+        "dlx",
+        "oxfmt@0.77.0",
+        "--check",
+        "context/02-system/09-verification/03-performance/.delta/DELTA-001-perf-gating-missing.md",
+        "context/02-system/09-verification/03-performance/requirements.md",
+        "context/02-system/09-verification/03-performance/spec.md",
+        "tests/perf/README.md",
+        "tests/perf/evidence/2026-11-08/README.md",
+        "tests/perf/playwright.config.ts",
+        "tests/perf/test-app/src/main.tsx",
+        "tests/perf/test-app/src/schema.ts",
+        "tests/perf/tests/fixtures.ts",
+        "tests/perf/tests/materializers.unit.ts",
+        "tests/perf/tests/measurements-reporter.ts",
+        "tests/perf/tests/measurements-reporter.unit.ts",
+        "tests/perf/tests/suites/latency.test.ts",
+        "tests/perf/tests/vitest.config.ts"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "oxfmt-files.json": [
+    ".changeset/cheaper-advance-and-opfs.md",
+    ".changeset/cloudflare-no-subscriber-fast-path.md",
+    ".changeset/shared-session-sqlite-wasm.md",
+    ".changeset/versioned-reactivity-and-registry.md",
+    "context/02-system/04-runtime/01-web/spec.md",
+    "context/02-system/05-store/01-reactivity/.decisions/0001-eager-adapton-reactivity.md",
+    "context/02-system/05-store/01-reactivity/.decisions/0002-versioned-equality-cutoff.md",
+    "context/02-system/05-store/01-reactivity/requirements.md",
+    "context/02-system/05-store/01-reactivity/spec.md",
+    "context/02-system/05-store/spec.md",
+    "context/02-system/06-observability/spec.md",
+    "context/02-system/08-integrations/01-react/spec.md",
+    "context/02-system/09-verification/03-performance/.delta/DELTA-001-perf-gating-missing.md",
+    "context/02-system/09-verification/03-performance/requirements.md",
+    "context/02-system/09-verification/03-performance/spec.md",
+    "packages/@livestore/adapter-web/src/web-worker/client-session/sqlite-loader.test.ts",
+    "packages/@livestore/adapter-web/src/web-worker/client-session/sqlite-loader.ts",
+    "packages/@livestore/adapter-web/vitest.config.ts",
+    "packages/@livestore/common/src/sync/ClientSessionSyncProcessor.ts",
+    "packages/@livestore/livestore/src/SqliteDbWrapper.test.ts",
+    "packages/@livestore/livestore/src/SqliteDbWrapper.ts",
+    "packages/@livestore/livestore/src/live-queries/db-query.test.ts",
+    "packages/@livestore/livestore/src/live-queries/db-query.ts",
+    "packages/@livestore/livestore/src/live-queries/signal.test.ts",
+    "packages/@livestore/livestore/src/reactive.test.ts",
+    "packages/@livestore/livestore/src/reactive.ts",
+    "packages/@livestore/livestore/src/store/StoreRegistry.test.ts",
+    "packages/@livestore/livestore/src/store/StoreRegistry.ts",
+    "packages/@livestore/livestore/src/store/store-commit.test.ts",
+    "packages/@livestore/livestore/src/store/store-eventstream.test.ts",
+    "packages/@livestore/livestore/src/store/store.ts",
+    "packages/@livestore/react/src/useQuery.test.tsx",
+    "packages/@livestore/react/src/useQuery.ts",
+    "packages/@livestore/react/src/useStore.test.tsx",
+    "packages/@livestore/react/src/useStore.ts",
+    "packages/@livestore/sqlite-wasm/src/browser/opfs/opfs-sah-pool.test.ts",
+    "packages/@livestore/sqlite-wasm/src/browser/opfs/opfs-sah-pool.ts",
+    "packages/@livestore/sync-cf/src/cf-worker/do/push.test.ts",
+    "packages/@livestore/sync-cf/src/cf-worker/do/push.ts",
+    "packages/@livestore/utils/src/NoopTracer.test.ts",
+    "tests/package-common/src/client-session/ClientSessionSyncProcessor.test.ts",
+    "tests/perf/README.md",
+    "tests/perf/evidence/2026-11-08/README.md",
+    "tests/perf/playwright.config.ts",
+    "tests/perf/test-app/src/main.tsx",
+    "tests/perf/test-app/src/schema.ts",
+    "tests/perf/tests/fixtures.ts",
+    "tests/perf/tests/measurements-reporter.ts",
+    "tests/perf/tests/measurements-reporter.unit.ts",
+    "tests/perf/tests/suites/latency.test.ts",
+    "tests/perf/tests/vitest.config.ts"
+  ],
+  "oxfmt-modified.json": [
+    "context/02-system/04-runtime/01-web/spec.md",
+    "context/02-system/05-store/01-reactivity/spec.md",
+    "context/02-system/06-observability/spec.md",
+    "context/02-system/08-integrations/01-react/spec.md",
+    "context/02-system/09-verification/03-performance/spec.md",
+    "packages/@livestore/common/src/sync/ClientSessionSyncProcessor.ts",
+    "packages/@livestore/livestore/src/live-queries/db-query.test.ts",
+    "packages/@livestore/livestore/src/reactive.ts",
+    "packages/@livestore/livestore/src/store/store-commit.test.ts",
+    "packages/@livestore/livestore/src/store/store-eventstream.test.ts",
+    "packages/@livestore/livestore/src/store/store.ts",
+    "packages/@livestore/sqlite-wasm/src/browser/opfs/opfs-sah-pool.test.ts",
+    "packages/@livestore/sync-cf/src/cf-worker/do/push.test.ts",
+    "packages/@livestore/sync-cf/src/cf-worker/do/push.ts",
+    "tests/perf/evidence/2026-11-08/README.md"
+  ],
+  "perf-before-sparse-fix.note.json": {
+    "status": "passed",
+    "tests": 125,
+    "production_test_app_schema": "id modulo implementation, superseded by sparse-row materializer semantic fix",
+    "timing_limit": "Short-lived adapter/Registry unit tests and TypeScript work overlapped the early part of the run; this is behavior validation, not isolated timing evidence.",
+    "log": "perf.log"
+  },
+  "schema-fix-checks.json": [
+    {
+      "name": "row-number-format",
+      "command": [
+        "pnpm",
+        "dlx",
+        "oxfmt@0.77.0",
+        "tests/perf/test-app/src/schema.ts",
+        "tests/perf/tests/materializers.unit.ts",
+        "tests/perf/tests/vitest.config.ts"
+      ],
+      "exit_code": 0,
+      "tail": "Finished in 11ms on 3 files using 12 threads.\nDone in 96ms using pnpm v12.15.0\n"
+    },
+    {
+      "name": "reporter-materializers",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tests/perf",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "tests/vitest.config.ts"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/tests/perf/tests\n\n\n Test Files  2 passed (2)\n      Tests  7 passed (7)\n   Start at  15:06:04\n   Duration  2.32s (transform 1.60s, setup 0ms, import 3.72s, tests 321ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "mono-ts-final-schema",
+      "command": [
+        "./scripts/bin/mono",
+        "ts"
+      ],
+      "exit_code": 0,
+      "tail": "Proxy environment variables detected. We'll use your proxy for fetch requests.\n[15:06:08.262] DEBUG (#2): Running 'tsc --build tsconfig.dev.json' in '/Users/shom/Downloads/livestore' {\n  thread: \"mono\",\n}\n"
+    },
+    {
+      "name": "intent-layer-formatted",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tests/package-common",
+        "exec",
+        "vitest",
+        "run",
+        "src/intent-layer"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/tests/package-common\n\n\n Test Files  1 passed (1)\n      Tests  8 passed (8)\n   Start at  15:06:11\n   Duration  284ms (transform 28ms, setup 0ms, import 91ms, tests 92ms, environment 0ms)\n\n"
+    }
+  ],
+  "setup.json": [
+    {
+      "name": "environment",
+      "command": [
+        "sh",
+        "-c",
+        "command -v node pnpm bun devenv nix oxfmt oxlint; node --version; pnpm --version; bun --version"
+      ],
+      "exit_code": 0,
+      "output": "/Users/shom/.nvm/versions/node/v24.22.2/bin/node\n/Users/shom/.nvm/versions/node/v24.22.2/bin/pnpm\n/Users/shom/.bun/bin/bun\nv24.22.2\n12.15.0\n1.3.11\n"
+    },
+    {
+      "name": "devenv-shell",
+      "command": [
+        "devenv",
+        "shell",
+        "true"
+      ],
+      "exit_code": 127,
+      "output": "[Errno 2] No such file or directory: 'devenv'"
+    },
+    {
+      "name": "devenv-lint",
+      "command": [
+        "devenv",
+        "tasks",
+        "run",
+        "lint:full:fix"
+      ],
+      "exit_code": 127,
+      "output": "[Errno 2] No such file or directory: 'devenv'"
+    },
+    {
+      "name": "devenv-test",
+      "command": [
+        "devenv",
+        "tasks",
+        "run",
+        "test:run"
+      ],
+      "exit_code": 127,
+      "output": "[Errno 2] No such file or directory: 'devenv'"
+    },
+    {
+      "name": "devenv-ts",
+      "command": [
+        "devenv",
+        "tasks",
+        "run",
+        "ts:check"
+      ],
+      "exit_code": 127,
+      "output": "[Errno 2] No such file or directory: 'devenv'"
+    }
+  ],
+  "unit-first.json": [
+    {
+      "name": "sync-cf",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/sync-cf",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/sync-cf\n\n\n Test Files  5 passed (5)\n      Tests  48 passed (48)\n   Start at  14:55:10\n   Duration  2.84s (transform 4.63s, setup 0ms, import 11.81s, tests 216ms, environment 1ms)\n\n"
+    },
+    {
+      "name": "common-cf",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/common-cf",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/common-cf\n\n\n Test Files  3 passed (3)\n      Tests  26 passed | 1 skipped (27)\n   Start at  14:55:13\n   Duration  47.87s (transform 4.01s, setup 0ms, import 16.15s, tests 56.73s, environment 0ms)\n\n"
+    },
+    {
+      "name": "reporter",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tests/perf",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "tests/vitest.config.ts"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/tests/perf/tests\n\n\n Test Files  1 passed (1)\n      Tests  5 passed (5)\n   Start at  14:56:01\n   Duration  932ms (transform 219ms, setup 0ms, import 806ms, tests 47ms, environment 0ms)\n\n"
+    }
+  ],
+  "unit-main.json": [
+    {
+      "name": "livestore",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/livestore",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/livestore\n\n\n Test Files  11 passed (11)\n      Tests  116 passed | 1 skipped (117)\n   Start at  14:56:33\n   Duration  3.96s (transform 15.13s, setup 0ms, import 27.82s, tests 2.50s, environment 1ms)\n\n"
+    },
+    {
+      "name": "react",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/react",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/react\n\n\n Test Files  4 passed (4)\n      Tests  58 passed | 1 skipped (59)\n   Start at  14:56:37\n   Duration  3.26s (transform 2.51s, setup 1.85s, import 5.06s, tests 1.88s, environment 0ms)\n\n"
+    },
+    {
+      "name": "sqlite-wasm",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/sqlite-wasm",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/sqlite-wasm\n\n\n Test Files  6 passed (6)\n      Tests  74 passed (74)\n   Start at  14:56:41\n   Duration  2.00s (transform 2.29s, setup 0ms, import 4.43s, tests 1.46s, environment 0ms)\n\n"
+    },
+    {
+      "name": "common-sync",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/common",
+        "exec",
+        "vitest",
+        "run",
+        "src/sync"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/common\n\n\n Test Files  5 passed (5)\n      Tests  55 passed (55)\n   Start at  14:56:43\n   Duration  1.04s (transform 1.15s, setup 0ms, import 3.77s, tests 105ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "package-common",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tests/package-common",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/tests/package-common\n\n\n Test Files  20 passed (20)\n      Tests  159 passed | 1 skipped (160)\n   Start at  14:56:44\n   Duration  38.72s (transform 9.48s, setup 0ms, import 40.55s, tests 48.28s, environment 4ms)\n\n"
+    }
+  ],
+  "unit-repaired.json": [
+    {
+      "name": "adapter-web-unit",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/adapter-web",
+        "exec",
+        "vitest",
+        "run"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/adapter-web\n\n\n Test Files  1 passed (1)\n      Tests  4 passed (4)\n   Start at  14:58:52\n   Duration  229ms (transform 85ms, setup 0ms, import 36ms, tests 89ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "registry-final",
+      "command": [
+        "pnpm",
+        "--dir",
+        "packages/@livestore/livestore",
+        "exec",
+        "vitest",
+        "run",
+        "src/store/StoreRegistry.test.ts"
+      ],
+      "exit_code": 0,
+      "tail": "\n RUN  v4.1.9 /Users/shom/Downloads/livestore/packages/@livestore/livestore\n\n\n Test Files  1 passed (1)\n      Tests  25 passed | 1 skipped (26)\n   Start at  14:58:52\n   Duration  3.02s (transform 1.62s, setup 0ms, import 2.52s, tests 417ms, environment 0ms)\n\n"
+    },
+    {
+      "name": "mono-ts-repaired",
+      "command": [
+        "./scripts/bin/mono",
+        "ts"
+      ],
+      "exit_code": 0,
+      "tail": "Proxy environment variables detected. We'll use your proxy for fetch requests.\n[14:58:57.455] DEBUG (#2): Running 'tsc --build tsconfig.dev.json' in '/Users/shom/Downloads/livestore' {\n  thread: \"mono\",\n}\n"
+    }
+  ]
+}

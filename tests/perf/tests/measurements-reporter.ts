@@ -1,4 +1,7 @@
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import os from 'node:os'
+import path from 'node:path'
 import process from 'node:process'
 
 import type { FullConfig, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter'
@@ -62,6 +65,7 @@ const NumberFromDescriptionAnnotation = <T extends string>(typeLiteral: T) =>
 const MeasurementAnnotation = NumberFromDescriptionAnnotation('measurement')
 const CpuThrottlingRateAnnotation = NumberFromDescriptionAnnotation('cpu throttling rate')
 const WarmupRunsAnnotation = NumberFromDescriptionAnnotation('warmup runs')
+const BrowserVersionAnnotation = StringDescribedAnnotation('browser version')
 
 const MeasurementUnitAnnotation = Schema.Struct({
   type: Schema.Literal('measurement unit'),
@@ -87,10 +91,33 @@ const AnyAnnotation = Schema.Union([
   MeasurementUnitAnnotation,
   CpuThrottlingRateAnnotation,
   WarmupRunsAnnotation,
+  BrowserVersionAnnotation,
 ])
 type AnyAnnotation = (typeof AnyAnnotation)['Type']
 
 const Annotations = Schema.NonEmptyArray(AnyAnnotation)
+
+export const collectGitInfo = (
+  cwd: string,
+  runCommand: (cwd: string, args: readonly string[]) => string | null = runGitCommand,
+): { commit: string | null; dirty: boolean | null } => {
+  const commit = runCommand(cwd, ['rev-parse', 'HEAD'])
+  const status = runCommand(cwd, ['status', '--porcelain'])
+  return {
+    commit: commit === null || commit.length === 0 ? null : commit,
+    dirty: status === null ? null : status.length > 0,
+  }
+}
+
+const runGitCommand = (cwd: string, args: readonly string[]): string | null => {
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    timeout: 5000,
+    windowsHide: true,
+  })
+  return result.error === undefined && result.status === 0 ? result.stdout.trim() : null
+}
 
 type CpuInfo = {
   readonly model: string
@@ -201,6 +228,7 @@ const collectSystemInfo = (): SystemInfo => {
 
 type TrackedMeasurement = {
   measurements: number[]
+  passedRuns: number
   meta: {
     unit: MeasurementUnit
     testSuiteTitle: string
@@ -214,8 +242,16 @@ export default class MeasurementsReporter implements Reporter {
   private readonly systemInfo = collectSystemInfo()
   private measurementsByTestTitle: Record<string, TrackedMeasurement> = {}
   private runtime = ManagedRuntime.make(OtelLayer)
+  private outputDir = path.join(process.cwd(), 'test-results')
+  private playwrightVersion: string | null = null
+  private chromiumVersion: string | null = null
+  private gitInfo: ReturnType<typeof collectGitInfo> = { commit: null, dirty: null }
 
-  onBegin = (_config: FullConfig, suite: Suite): void => {
+  onBegin = (config: FullConfig, suite: Suite): void => {
+    this.outputDir = config.projects[0]?.outputDir ?? path.join(config.rootDir, 'test-results')
+    this.playwrightVersion = config.version
+    this.gitInfo = collectGitInfo(config.rootDir)
+
     for (const test of suite.allTests()) {
       const decodedAnnotations = Schema.decodeUnknownSync(Annotations)(test.annotations)
       const measurementUnitAnnotation = getRequiredAnnotationSync(decodedAnnotations, 'measurement unit', test.title)
@@ -224,6 +260,7 @@ export default class MeasurementsReporter implements Reporter {
 
       this.measurementsByTestTitle[test.title] = {
         measurements: [],
+        passedRuns: 0,
         meta: {
           unit: measurementUnitAnnotation.description,
           testSuiteTitle,
@@ -236,26 +273,80 @@ export default class MeasurementsReporter implements Reporter {
   }
 
   onTestEnd = (test: TestCase, result: TestResult): void => {
+    const decodedAnnotations = Schema.decodeUnknownSync(Annotations)(test.annotations)
+    this.chromiumVersion =
+      decodedAnnotations.find((annotation) => annotation.type === 'browser version')?.description ??
+      this.chromiumVersion
+
     if (result.status !== 'passed') return
 
-    const decodedAnnotations = Schema.decodeUnknownSync(Annotations)(test.annotations)
-    const measurementAnnotation = getRequiredAnnotationSync(decodedAnnotations, 'measurement', test.title)
+    const measurementAnnotation = decodedAnnotations.find(
+      (value): value is Extract<AnyAnnotation, { type: 'measurement' }> => value.type === 'measurement',
+    )
     const trackedMeasurement = this.measurementsByTestTitle[test.title]
     if (trackedMeasurement === undefined) return
 
-    trackedMeasurement.measurements.push(measurementAnnotation.description)
+    trackedMeasurement.passedRuns++
+    if (measurementAnnotation !== undefined) {
+      trackedMeasurement.measurements.push(measurementAnnotation.description)
+    }
   }
 
   onEnd = async (): Promise<void> => {
     const metricStatesByTitle = await this.runtime.runPromise(this.computeMetricStates())
-    this.printSystemInfo()
-    this.printMeasurements(metricStatesByTitle)
-    await this.runtime.dispose()
+    try {
+      this.printSystemInfo()
+      this.printMeasurements(metricStatesByTitle)
+      await this.writeJsonReport(metricStatesByTitle)
+    } finally {
+      await this.runtime.dispose()
+    }
   }
 
   printsToStdio = (): boolean => true
 
   // Private methods
+  /** Reuse the OTel summary state so console and JSON reports share quantile semantics. */
+  private writeJsonReport = async (metricStatesByTitle: Record<string, TrackedMeasurementState>): Promise<void> => {
+    const tests = Object.entries(metricStatesByTitle).map(([testTitle, { meta, state }]) => {
+      const measurements = this.measurementsByTestTitle[testTitle]?.measurements ?? []
+      const passedRuns = this.measurementsByTestTitle[testTitle]?.passedRuns ?? 0
+      const getQuantile = (quantile: number) =>
+        state.count === 0 ? null : (state.quantiles.find(([q]) => q === quantile)?.[1] ?? null)
+      const lowerQuartile = getQuantile(0.25)
+      const upperQuartile = getQuantile(0.75)
+
+      return {
+        ...meta,
+        measurements,
+        runCount: passedRuns,
+        measuredCount: measurements.length,
+        missingCount: passedRuns - measurements.length,
+        summary: {
+          median: getQuantile(0.5),
+          iqr: lowerQuartile === null || upperQuartile === null ? null : upperQuartile - lowerQuartile,
+          min: state.count === 0 ? null : state.min,
+          max: state.count === 0 ? null : state.max,
+        },
+      }
+    })
+    const report = {
+      schemaVersion: 1,
+      createdAt: new Date().toISOString(),
+      system: this.systemInfo,
+      versions: {
+        node: process.version,
+        playwright: this.playwrightVersion,
+        chromium: this.chromiumVersion,
+      },
+      git: this.gitInfo,
+      tests,
+    }
+    const outputPath = path.join(this.outputDir, 'measurements.json')
+    await fs.promises.mkdir(this.outputDir, { recursive: true })
+    await fs.promises.writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
+  }
+
   private printSystemInfo = (): void => {
     console.log(PrettySystemInfo(this.systemInfo))
   }
@@ -317,7 +408,7 @@ export default class MeasurementsReporter implements Reporter {
       })
       printConsoleTable(headers, rows)
     } else {
-      const headers = [testSuiteTitle, 'Mean', 'Median', 'IQR', 'Min', 'Max']
+      const headers = [testSuiteTitle, 'Mean', 'Median', 'IQR', 'Min', 'Max', 'Runs']
       const rows: string[][] = []
 
       for (const [testTitle, metricState] of Object.entries(metricStatesResult)) {
@@ -342,6 +433,7 @@ export default class MeasurementsReporter implements Reporter {
           iqr,
           `${formatValue(metricState.min)} ${displayUnit}`,
           `${formatValue(metricState.max)} ${displayUnit}`,
+          `${metricState.count}/${this.measurementsByTestTitle[testTitle]?.passedRuns ?? 0}`,
         ])
       }
       printConsoleTable(headers, rows)

@@ -35,7 +35,9 @@ Clicking on a specific bar in the chart will open the corresponding commit in Gi
 
 Latency is measured using the [Event Timing API](https://web.dev/articles/custom-metrics#event-timing-api). This API captures the time (**rounded to 8 ms** for security and privacy reasons) between when the browser receives the interaction event until it's able to paint the next frame after finishing executing all synchronous code initiated from the event handlers.
 
-Each latency test scenario is run **15 times** to reduce the impact of any outliers, and provide more stable and reliable metrics. We summarize these runs using:
+Each latency test scenario is run **15 times** to reduce the impact of any outliers, and provide more stable and reliable metrics. Event Timing entries below the API's 16 ms collection threshold are not emitted. If no entry arrives within 100 ms, that passed run is marked as missing instead of being assigned a fabricated duration. The JSON report records `runCount`, `measuredCount`, and `missingCount`; summaries describe only runs with actual measurements.
+
+We summarize the measured runs using:
 
 - **Median (instead of mean/average)**: represents typical performance, resistant to outliers.
 - **IQR (Interquartile Range)**: measures the variability within the core 50% of measurements. A tight IQR points to stable performance, while a broad IQR indicates less predictability.
@@ -57,8 +59,10 @@ The tests are executed on GitHub Actions for every commit on `main` and opened p
 You can also run the tests locally to see how the performance changes between your code changes:
 
 ```shell
-pnpm test
+WORKSPACE_ROOT="$PWD" ./scripts/bin/mono test perf
 ```
+
+Each run writes `test-results/measurements.json` with raw measurements, summaries, run coverage, system information, tool versions, and git metadata. The preview server uses port `4173` by default; set `LIVESTORE_PERF_PORT` to choose a different port. Playwright always starts a fresh server for the run.
 
 > [!NOTE]
 > Local test results are only comparable to other local test results executed on the same machine. The results are not comparable to the results on GitHub Actions, as the environment is different.
@@ -66,7 +70,7 @@ pnpm test
 If you want to record a performance profile for each test, you can use the following command. This will record a performance profile for each test scenario and save it as `./test-results/<test-scenario>/perf-profile.json`. This can be useful for investigating performance issues or for analyzing the performance in more detail.
 
 ```shell
-pnpm test:profiler
+PERF_PROFILER=1 WORKSPACE_ROOT="$PWD" ./scripts/bin/mono test perf
 ```
 
 > [!NOTE]

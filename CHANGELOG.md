@@ -13,6 +13,10 @@ features. Try the development build with `npm install @livestore/livestore@dev`.
 
 ### Changed
 
+- **Queries and React:** Equal reactive results now retain object identity and avoid redundant subscriber notifications. Dynamic SQL switches track their current tables, and retained-store lookup and React subscription setup do less repeated work ([Shomvel/livestore#1](https://github.com/Shomvel/livestore/pull/1)).
+- **Large events:** Compatible INSERTs within large materializer events execute in fewer SQL statements while keeping event hashes, journal entries and rollback boundaries intact ([Shomvel/livestore#1](https://github.com/Shomvel/livestore/pull/1)).
+- **Web adapter:** In-memory server stores share SQLite WASM initialization while retaining independent databases and lifetimes. Failed initialization can retry, and OPFS pool startup avoids duplicate header reads ([Shomvel/livestore#1](https://github.com/Shomvel/livestore/pull/1)).
+- **Sync:** Pure upstream advances avoid redundant argument serialization. Cloudflare pushes with no subscribers avoid unnecessary response encoding while preserving persistence and oversized-event errors ([Shomvel/livestore#1](https://github.com/Shomvel/livestore/pull/1)).
 - **DevTools:** DevTools no longer requires a sponsor license ([#1511](https://github.com/livestorejs/livestore/issues/1511)).
 - **DevTools:** Fixed web sessions getting stuck at "Connecting to session" by keeping worker connections alive until the session disconnects ([#1709](https://github.com/livestorejs/livestore/pull/1709)).
 - **State storage:** Rebases roll back state through a materialization journal table instead of SQLite changesets carried in event metadata. Because the state system tables changed, existing state databases are rebuilt from the eventlog once after upgrading ([#1658](https://github.com/livestorejs/livestore/pull/1658)).
@@ -26,6 +30,7 @@ features. Try the development build with `npm install @livestore/livestore@dev`.
 
 For maintainers and contributors:
 
+- **Performance tests:** Improved the benchmark list and set-based updates, preserved missing Event Timing coverage in JSON reports, and archived the optimization evidence and verification limits. SQL row numbers preserve every-tenth-row behavior for sparse IDs and deletions ([Shomvel/livestore#1](https://github.com/Shomvel/livestore/pull/1)).
 - **Test tooling:** Extension-backed Playwright launches preserve caller-supplied
   Chromium arguments alongside extension flags. The DevTools undock locator
   selects the native button by role instead of matching its presentation host.
@@ -705,9 +710,10 @@ See the [S2 sync provider docs](https://dev.docs.livestore.dev/reference/syncing
 - **Event deprecation support:** Mark entire events or individual fields as deprecated to guide schema evolution. When deprecated events are committed or deprecated fields have values, a warning is logged via Effect's logging system to help teams migrate away from legacy patterns (#956).
 
   ```typescript
-  import { Events } from '@livestore/livestore'
   import { Schema } from 'effect'
+
   import { deprecated } from '@livestore/common/schema'
+  import { Events } from '@livestore/livestore'
 
   // Field-level deprecation
   const todoUpdated = Events.synced({
@@ -967,6 +973,7 @@ Open issues:
 
   // schema.ts
   import { DbSchema, makeSchema } from '@livestore/livestore'
+
   import * as mutations from './mutations.js'
 
   const todos = DbSchema.table('todos', {
@@ -1003,6 +1010,7 @@ Open issues:
 
   // schema.ts
   import { makeSchema, Schema, State } from '@livestore/livestore'
+
   import * as events from './events.js'
 
   const todos = State.SQLite.table({

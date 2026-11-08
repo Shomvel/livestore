@@ -15,8 +15,9 @@ const PERSISTENT_FILE_TYPES =
 const textDecoder = new TextDecoder()
 
 export const decodeAccessHandlePoolFilename = async (file: File): Promise<string> => {
-  // Read the path and digest of the path from the file.
-  const corpus = new Uint8Array(await file.slice(0, HEADER_CORPUS_SIZE).arrayBuffer())
+  // Read the path and digest together to avoid a second OPFS read for every pool file during startup.
+  const header = await file.slice(0, HEADER_OFFSET_DIGEST + HEADER_DIGEST_SIZE).arrayBuffer()
+  const corpus = new Uint8Array(header, 0, HEADER_CORPUS_SIZE)
 
   // Delete files not expected to be present.
   const dataView = new DataView(corpus.buffer, corpus.byteOffset)
@@ -26,9 +27,11 @@ export const decodeAccessHandlePoolFilename = async (file: File): Promise<string
     return ''
   }
 
-  const fileDigest = new Uint32Array(
-    await file.slice(HEADER_OFFSET_DIGEST, HEADER_OFFSET_DIGEST + HEADER_DIGEST_SIZE).arrayBuffer(),
-  )
+  const fileDigest =
+    header.byteLength === HEADER_OFFSET_DIGEST + HEADER_DIGEST_SIZE
+      ? new Uint32Array(header, HEADER_OFFSET_DIGEST, HEADER_DIGEST_SIZE / 4)
+      : // Preserve the two-read decoder's behavior for malformed or truncated files.
+        new Uint32Array(header.slice(HEADER_OFFSET_DIGEST))
 
   // Verify the digest.
   const computedDigest = computeDigest(corpus)

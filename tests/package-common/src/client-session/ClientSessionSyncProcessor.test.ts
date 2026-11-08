@@ -278,6 +278,95 @@ Vitest.describe.concurrent('ClientSessionSyncProcessor', () => {
     }).pipe(withTestCtx(test)),
   )
 
+  Vitest.it.effect('avoids redundant arg serialization when applying a pure upstream advance', (test) =>
+    Effect.gen(function* () {
+      const pullQueue = yield* Queue.unbounded<typeof SyncState.PayloadUpstream.Type>()
+      let canonicalizations = 0
+      const { processor, close } = yield* makeClientProcessorHarness({
+        push: () => Effect.void,
+        pull: () => pullFromQueue(pullQueue),
+      })
+      const remoteEvents = Array.from({ length: PULL_CHUNK_SIZE }, (_, i) => {
+        const args = { id: `remote-${i}`, text: 'remote', completed: false }
+        return LiveStoreEvent.Client.Encoded.make({
+          name: 'todoCreated',
+          args: {
+            ...args,
+            // isEqualEncoded canonicalizes args through JSON; a pure advance needs no encoded-event comparison here.
+            toJSON: () => {
+              canonicalizations++
+              return args
+            },
+          },
+          seqNum: EventSequenceNumber.Client.Composite.make({ global: i + 1, client: 0 }),
+          parentSeqNum: EventSequenceNumber.Client.Composite.make({ global: i, client: 0 }),
+          clientId: 'remote-client',
+          sessionId: 'remote-session',
+        })
+      })
+      yield* Queue.offer(pullQueue, SyncState.PayloadUpstreamAdvance.make({ newEvents: remoteEvents }))
+      yield* processor.syncState.changes.pipe(
+        Stream.takeUntil((state) => state.upstreamHead.global === remoteEvents.length),
+        Stream.runDrain,
+      )
+      expect(canonicalizations).toBe(0)
+      expect(Exit.isSuccess(yield* close().pipe(Effect.exit))).toBe(true)
+    }).pipe(withTestCtx(test)),
+  )
+
+  Vitest.it.effect('avoids re-canonicalizing identical incoming objects during a pending rebase', (test) =>
+    Effect.gen(function* () {
+      const pullQueue = yield* Queue.unbounded<typeof SyncState.PayloadUpstream.Type>()
+      const materialized: LiveStoreEvent.Client.Encoded[] = []
+      const { processor, pushIds, close } = yield* makeClientProcessorHarness({
+        push: () => Effect.void,
+        pull: () => pullFromQueue(pullQueue),
+        materializeEvent: (event) =>
+          Effect.sync(() => {
+            materialized.push(event)
+            return { writeTables: new Set<string>(), materializerHash: Option.none<number>() }
+          }),
+      })
+      yield* pushIds(['local'])
+      materialized.length = 0
+      let canonicalizations = 0
+      const remoteEvent = (global: number, name: string) => {
+        const args = { id: `remote-${global}`, text: 'remote', completed: false }
+        return LiveStoreEvent.Client.Encoded.make({
+          name,
+          args: {
+            ...args,
+            toJSON: () => {
+              canonicalizations++
+              return args
+            },
+          },
+          seqNum: EventSequenceNumber.Client.Composite.make({ global, client: 0 }),
+          parentSeqNum: EventSequenceNumber.Client.Composite.make({ global: global - 1, client: 0 }),
+          clientId: 'remote-client',
+          sessionId: 'remote-session',
+        })
+      }
+      yield* Queue.offer(
+        pullQueue,
+        SyncState.PayloadUpstreamAdvance.make({
+          newEvents: [remoteEvent(1, 'todoCreated'), remoteEvent(2, 'future-event')],
+        }),
+      )
+      yield* processor.syncState.changes.pipe(
+        Stream.takeUntil((state) => state.upstreamHead.global === 2 && state.localHead.global === 3),
+        Stream.runDrain,
+      )
+      expect(canonicalizations).toBe(0)
+      expect(materialized.map((event) => event.name)).toEqual(['todoCreated', 'future-event', 'todoCreated'])
+      expect(materialized.map((event) => event.seqNum.global)).toEqual([1, 2, 3])
+      const final = yield* processor.syncState.get
+      expect(final.pending.map((event) => event.args.id)).toEqual(['local'])
+      expect(final.pending[0]?.seqNum.rebaseGeneration).toBe(1)
+      expect(Exit.isSuccess(yield* close().pipe(Effect.exit))).toBe(true)
+    }).pipe(withTestCtx(test)),
+  )
+
   Vitest.live('from scratch', (test) =>
     Effect.gen(function* () {
       const { makeStore, mockSyncBackend } = yield* TestContext

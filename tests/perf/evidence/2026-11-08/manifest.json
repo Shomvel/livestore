@@ -1,0 +1,51 @@
+{
+  "session": "session_43ed2f9e-7bd5-45b4-be2a-4b8630763011",
+  "upstreamBase": "85ddd7c96135761111844f7b35b7ba485f25ff92",
+  "files": [
+    {
+      "file": "baseline-latency.json",
+      "sha256": "2ec750b023d10bf26e2f7914ebbc83b23882bb71902d29789e8e00ad36e022d5",
+      "source": "Kimi session local measurements"
+    },
+    {
+      "file": "batch-insert-perf.json",
+      "sha256": "0572ae08e11e4d5d27011a131a07bb474fd9616b06193710d36d786fa6e47eee",
+      "source": "Kimi session local measurements"
+    },
+    {
+      "file": "set-based-update-perf.json",
+      "sha256": "d65f550524920905ed15b53290ea37ea7aff33eb84c8ddba58134a55c90df5eb",
+      "source": "Kimi session local measurements"
+    },
+    {
+      "file": "multi-store-startup.json",
+      "sha256": "3939f9c828c201109a91359d9e75232fd7f7b217257c02c688c66445209cd7a8",
+      "source": "recovered Kimi agent-1 raw output"
+    },
+    {
+      "file": "validation/commands.json",
+      "sha256": "6feb87d1607c61243ef8cf56f18575c07126d6e4742697b10361f47d3a95c87c",
+      "source": "Codex closeout validation"
+    },
+    {
+      "file": "validation/measurements.json",
+      "sha256": "0c36c3d1827f52444d480367e61a5f3bdfc95b5706e570712383cd7881a25dcd",
+      "source": "Codex closeout validation"
+    },
+    {
+      "file": "validation/source-fingerprints.json",
+      "sha256": "9598c908ec729215558f9fea98f1a59400a24a9c4fd614d0878cffca30809e58",
+      "source": "Codex closeout validation"
+    },
+    {
+      "file": "validation/stdout.json",
+      "sha256": "143872f77c43c7d46799f394e924ca31605fe745fbad6921237dd0fab5e51e90",
+      "source": "Codex closeout validation"
+    },
+    {
+      "file": "validation/summary.json",
+      "sha256": "41de319a595ca5fc1792b6f436c3898e1008818628cae3189aa65295dfb59293",
+      "source": "Codex closeout validation"
+    }
+  ]
+}

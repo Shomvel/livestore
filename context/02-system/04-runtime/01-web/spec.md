@@ -6,11 +6,11 @@ builds on [requirements.md](./requirements.md); the mechanism-agnostic
 contract is in [../spec.md](../spec.md). The mechanics live in the child
 nodes:
 
-| Child | Owns |
-| --- | --- |
+| Child                                       | Owns                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [01-persistence/](./01-persistence/spec.md) | OPFS databases, storage probes + fallback, state-db naming, fast path, identity keys |
-| [02-topology/](./02-topology/spec.md) | worker graph, two-layer init messages, port swap + mediation, boot-status proxying |
-| [03-leadership/](./03-leadership/spec.md) | the two locks, election + handover, death detection, shutdown propagation |
+| [02-topology/](./02-topology/spec.md)       | worker graph, two-layer init messages, port swap + mediation, boot-status proxying   |
+| [03-leadership/](./03-leadership/spec.md)   | the two locks, election + handover, death detection, shutdown propagation            |
 
 ## Status
 
@@ -21,15 +21,27 @@ Draft.
 Each variant is a configuration of the three child mechanics
 (LS.SYS.RT.WEB-R04); all return the same `ClientSession` contract:
 
-| Variant | Entry | Persistence | Topology | Leadership |
-| --- | --- | --- | --- | --- |
-| Worker (default) | `web-worker/` | OPFS | full (shared + leader worker) | two-lock election |
-| Single-tab | `single-tab/` | OPFS | no mediation layer; dedicated leader worker retained, session speaks both port layers itself; devtools disabled | static `has-lock` |
-| In-memory | `in-memory/` | none | no workers; leader inline in-context (optional devtools-only shared worker) | static `has-lock` |
+| Variant          | Entry         | Persistence | Topology                                                                                                        | Leadership        |
+| ---------------- | ------------- | ----------- | --------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Worker (default) | `web-worker/` | OPFS        | full (shared + leader worker)                                                                                   | two-lock election |
+| Single-tab       | `single-tab/` | OPFS        | no mediation layer; dedicated leader worker retained, session speaks both port layers itself; devtools disabled | static `has-lock` |
+| In-memory        | `in-memory/`  | none        | no workers; leader inline in-context (optional devtools-only shared worker)                                     | static `has-lock` |
 
 The worker adapter falls back to single-tab automatically when
 `SharedWorker` is unavailable (e.g. Android Chrome). Single-tab warns that
 multiple tabs on one `storeId` can conflict.
+
+## SQLite Module Initialization
+
+Client sessions in the same JavaScript realm share the SQLite WASM initialization
+promise. Browser sessions start it eagerly at module evaluation. Server runtimes
+start it on first use, preserving Workerd's restriction on module-time async I/O.
+A rejected initialization is cleared so a later request can retry, including
+after a failed browser preload. Concurrent callers share the same pending promise.
+
+This shares the WASM API, not store state: each store still owns its database
+pointers, eventlog, sync processor and lifetime scope. Shutting down one store
+does not close another store's database.
 
 ## Devtools Wiring
 

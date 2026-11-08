@@ -327,6 +327,9 @@ export class LiveStoreDbQuery<TResultSchema, TResult = TResultSchema> extends Li
     }
 
     const queriedTablesRef: { current: Set<string> | undefined } = { current: undefined }
+    let lastDecodedResult:
+      | { rawDbResults: ReadonlyArray<any>; schema: Schema.Codec<any, any>; result: TResult }
+      | undefined
 
     const makeResultsEqual = (resultSchema: Schema.Codec<any, any>) => {
       // Creating the equivalence function eagerly in outer scope as it might be expensive
@@ -375,9 +378,7 @@ export class LiveStoreDbQuery<TResultSchema, TResult = TResultSchema> extends Li
             const sqlString = queryInputResult.query
             const bindValues = queryInputResult.bindValues
 
-            if (queriedTablesRef.current === undefined) {
-              queriedTablesRef.current = store[StoreInternalsSymbol].sqliteDbWrapper.getTablesUsed(sqlString)
-            }
+            queriedTablesRef.current = store[StoreInternalsSymbol].sqliteDbWrapper.getTablesUsed(sqlString)
 
             // Live query inputs may be cached and re-run as reactive dependencies change.
             // Resolve SessionIdSymbol per execution so the cached input stays symbolic and session-agnostic.
@@ -406,15 +407,24 @@ export class LiveStoreDbQuery<TResultSchema, TResult = TResultSchema> extends Li
 
             span.setAttribute('sql.rowsCount', rawDbResults.length)
 
-            const parsedResult = Schema.decodeResult(schemaRef.current!)(rawDbResults)
+            const resultSchema = schemaRef.current!
+            let result: TResult
+            if (
+              lastDecodedResult !== undefined &&
+              lastDecodedResult.rawDbResults === rawDbResults &&
+              lastDecodedResult.schema === resultSchema
+            ) {
+              result = lastDecodedResult.result
+            } else {
+              const parsedResult = Schema.decodeResult(resultSchema)(rawDbResults)
 
-            if (Result.isFailure(parsedResult) === true) {
-              const parseErrorStr = SchemaIssue.makeFormatterDefault()(parsedResult.failure.issue)
-              const expectedSchemaStr = String(schemaRef.current!.ast)
-              const bindValuesStr = bindValues === undefined ? '' : `\nBind values: ${JSON.stringify(bindValues)}`
+              if (Result.isFailure(parsedResult) === true) {
+                const parseErrorStr = SchemaIssue.makeFormatterDefault()(parsedResult.failure.issue)
+                const expectedSchemaStr = String(resultSchema.ast)
+                const bindValuesStr = bindValues === undefined ? '' : `\nBind values: ${JSON.stringify(bindValues)}`
 
-              return shouldNeverHappen(
-                `\
+                return shouldNeverHappen(
+                  `\
 Error parsing SQL query result (${label}).
 
 Query: ${sqlString}\
@@ -425,12 +435,19 @@ Expected schema: ${expectedSchemaStr}
 Error: ${parseErrorStr}
 
 Result:`,
-                rawDbResults,
-                '\n',
-              )
-            }
+                  rawDbResults,
+                  '\n',
+                )
+              }
 
-            const result = this.mapResult(parsedResult.success)
+              const mappedResult = this.mapResult(parsedResult.success)
+              result =
+                lastDecodedResult !== undefined && lastDecodedResult.schema === resultSchema
+                  ? shareArrayElements(lastDecodedResult.result, mappedResult)
+                  : mappedResult
+              // Raw result identity avoids repeated decoding; schema identity guards dynamic query inputs.
+              lastDecodedResult = { rawDbResults, schema: resultSchema, result }
+            }
 
             span.end()
 
@@ -468,4 +485,27 @@ Result:`,
       query.deref()
     }
   }
+}
+
+const shareArrayElements = <T>(previous: T, next: T): T => {
+  if (
+    Array.isArray(previous) === false ||
+    Array.isArray(next) === false ||
+    Object.getPrototypeOf(previous) !== Array.prototype ||
+    Object.getPrototypeOf(next) !== Array.prototype
+  ) {
+    return next
+  }
+
+  let shared: any[] | undefined
+  const sharedLength = Math.min(previous.length, next.length)
+  for (let index = 0; index < sharedLength; index++) {
+    if (Object.is(previous[index], next[index]) === false && deepEqual(previous[index], next[index])) {
+      // Positional matching is O(n); slicing on first reuse avoids mutating either result array.
+      shared ??= next.slice()
+      shared[index] = previous[index]
+    }
+  }
+
+  return (shared ?? next) as T
 }

@@ -255,15 +255,16 @@ export class Store<TSchema extends LiveStoreSchema = LiveStoreSchema.Any, TConte
 
           const { eventDef, materializer } = resolution
 
-          const execArgsArr = getExecStatementsFromMaterializer({
+          const materializerStatements = getExecStatementsFromMaterializer({
             eventDef,
             materializer,
             dbState,
             event: { decoded: undefined, encoded: eventEncoded },
           })
+          const execArgsArr = batchInsertStatements(materializerStatements)
 
           const materializerHash =
-            isDevEnv() === true ? Option.some(hashMaterializerResults(execArgsArr)) : Option.none()
+            isDevEnv() === true ? Option.some(hashMaterializerResults(materializerStatements)) : Option.none()
 
           // Hash mismatch detection only occurs during the pull path (when receiving events from the leader).
           // During push path (local commits), materializerHashLeader is always Option.none(), so this condition
@@ -1297,3 +1298,67 @@ export class Store<TSchema extends LiveStoreSchema = LiveStoreSchema.Any, TConte
 }
 
 type CommitBatchBuilder<TSchema extends LiveStoreSchema> = () => ReadonlyArray<LiveStoreEvent.Input.ForSchema<TSchema>>
+
+/** Batches adjacent plain INSERTs only for large events, chunked below SQLite's 999-parameter floor. */
+const batchInsertStatements = (
+  statements: ReturnType<typeof getExecStatementsFromMaterializer>,
+): ReturnType<typeof getExecStatementsFromMaterializer> => {
+  if (statements.length < 2000) return statements
+
+  const result: Array<(typeof statements)[number]> = []
+  let index = 0
+  while (index < statements.length) {
+    const current = statements[index]!
+    const parsed = parsePlainInsert(current.statementSql)
+    index++
+    if (parsed === null || Array.isArray(current.bindValues) === false || current.bindValues.length === 0) {
+      result.push(current)
+      continue
+    }
+
+    const parameterCount = current.bindValues.length
+    const maxRows = Math.floor(999 / parameterCount)
+    let rowCount = 1
+    const bindValues = [...current.bindValues]
+    while (index < statements.length && rowCount < maxRows && canMergeInsert(current, statements[index]!) === true) {
+      const next = statements[index]!
+      if (Array.isArray(next.bindValues)) bindValues.push(...next.bindValues)
+      rowCount++
+      index++
+    }
+
+    if (rowCount === 1) {
+      result.push(current)
+      continue
+    }
+
+    const statementSql = `${parsed.prefix} VALUES ${Array.from({ length: rowCount }, () => `(${parsed.placeholders})`).join(', ')}`
+    result.push({ ...current, statementSql, bindValues: prepareBindValues(bindValues, statementSql) })
+  }
+  return result
+}
+
+const parsePlainInsert = (statementSql: string) => {
+  const match = statementSql.match(
+    /^(INSERT(?: OR REPLACE)? INTO '[^']+' \((?:"[^"]+"(?:, )?)+\)) VALUES \((\?(?:, \?)*)\)$/,
+  )
+  return match === null ? null : { prefix: match[1]!, placeholders: match[2]! }
+}
+
+const canMergeInsert = (
+  left: ReturnType<typeof getExecStatementsFromMaterializer>[number],
+  right: ReturnType<typeof getExecStatementsFromMaterializer>[number],
+) =>
+  left.statementSql === right.statementSql &&
+  Array.isArray(right.bindValues) === true &&
+  left.bindValues.length === right.bindValues.length &&
+  haveSameWriteTables(left.writeTables, right.writeTables)
+
+const haveSameWriteTables = (left: ReadonlySet<string> | undefined, right: ReadonlySet<string> | undefined) => {
+  if (left === undefined || right === undefined) return left === right
+  if (left.size !== right.size) return false
+  for (const table of left) {
+    if (right.has(table) === false) return false
+  }
+  return true
+}

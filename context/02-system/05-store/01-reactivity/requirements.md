@@ -30,5 +30,8 @@ R01 and R02 below were re-homed from the parent node on 2026-07-16
   function cannot be introspected (Hermes/Expo) must supply explicit `deps`;
   construction fails fast otherwise. Adopted 2026-07-16 (interview).
 - **LS.SYS.STORE.RX-R05 Equality cutoff:** A query does not re-emit when its
-  decoded result is schema-equivalent to the previous one; supplying `map`
-  disables the cutoff. Adopted 2026-07-16 (interview). `refines: LS-R12`
+  result is equal to the previous one: schema-derived equivalence is used when
+  available, otherwise the graph's default deep equality applies, including
+  queries with `map`. Equal results retain their previous object identity.
+  Adopted 2026-07-16 (interview); clarified 2026-11-08 by
+  [decision 0002](./.decisions/0002-versioned-equality-cutoff.md). `refines: LS-R12`

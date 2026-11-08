@@ -1,0 +1,673 @@
+{
+  "provenance": {
+    "session": "session_43ed2f9e-7bd5-45b4-be2a-4b8630763011",
+    "agent": "agent-1",
+    "wireLine": 1565,
+    "sourceSha256": "b7b466788b8d4c04e90a358feea353cea838d8a50c7bd94765c9184d7500932c",
+    "kind": "recovered original tool output, not a new run",
+    "scope": "loader-only A/B on the then-current combined candidate",
+    "order": "five rounds, alternating AB/BA and count order; separate Node process per sample",
+    "runtime": "Node production mode with experimental-transform-types; module import and registry disposal excluded"
+  },
+  "summary": [
+    {
+      "count": 1,
+      "samplesPerVariant": [
+        5,
+        5
+      ],
+      "baselineMedianMs": 48.822874999999954,
+      "candidateMedianMs": 48.565166999999974
+    },
+    {
+      "count": 10,
+      "samplesPerVariant": [
+        5,
+        5
+      ],
+      "baselineMedianMs": 202.17554200000006,
+      "candidateMedianMs": 116.95354200000008
+    },
+    {
+      "count": 100,
+      "samplesPerVariant": [
+        5,
+        5
+      ],
+      "baselineMedianMs": 1344.9074580000001,
+      "candidateMedianMs": 474.138875
+    }
+  ],
+  "samples": [
+    {
+      "variant": "baseline",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 47.02329099999997,
+      "perStoreMs": 47.02329099999997,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 38.83379200000002,
+          "minMs": 38.83379200000002,
+          "maxMs": 38.83379200000002
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 8.991250000000036,
+          "minMs": 8.991250000000036,
+          "maxMs": 8.991250000000036
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 48.565166999999974,
+      "perStoreMs": 48.565166999999974,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 39.593124999999986,
+          "minMs": 39.593124999999986,
+          "maxMs": 39.593124999999986
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 9.418833000000063,
+          "minMs": 9.418833000000063,
+          "maxMs": 9.418833000000063
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 202.17554200000006,
+      "perStoreMs": 20.217554200000006,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 176.81908199999975,
+          "minMs": 7.25912500000004,
+          "maxMs": 42.61054100000001
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 31.114377999999988,
+          "minMs": 1.7387919999999895,
+          "maxMs": 10.63854200000003
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 100.123875,
+      "perStoreMs": 10.012387499999999,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 76.99745800000017,
+          "minMs": 3.0862920000000713,
+          "maxMs": 36.97579099999996
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 27.36324999999988,
+          "minMs": 1.4904169999999795,
+          "maxMs": 8.839582999999948
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 1054.886916,
+      "perStoreMs": 10.548869159999999,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 948.624707,
+          "minMs": 4.66295799999989,
+          "maxMs": 41.034832999999935
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 229.30412600000102,
+          "minMs": 1.2069590000000971,
+          "maxMs": 10.343334000000027
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 464.427875,
+      "perStoreMs": 4.64427875,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 355.817247000001,
+          "minMs": 2.2266250000000127,
+          "maxMs": 39.68212500000004
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 160.3033680000001,
+          "minMs": 1.0679999999999836,
+          "maxMs": 10.049082999999996
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 428.8374580000001,
+      "perStoreMs": 4.288374580000001,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 334.04878299999984,
+          "minMs": 2.0763750000000982,
+          "maxMs": 37.16283299999998
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 152.13429400000007,
+          "minMs": 1.0027919999999995,
+          "maxMs": 11.272375000000011
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 1344.9074580000001,
+      "perStoreMs": 13.449074580000001,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 1195.6318789999991,
+          "minMs": 5.5031249999999545,
+          "maxMs": 52.471416999999974
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 304.80587600000024,
+          "minMs": 1.3519580000001952,
+          "maxMs": 27.781334000000015
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 117.7500839999999,
+      "perStoreMs": 11.77500839999999,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 90.61425099999997,
+          "minMs": 3.3231250000000045,
+          "maxMs": 42.319541999999956
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 32.52604199999996,
+          "minMs": 1.5678749999999582,
+          "maxMs": 10.026917000000026
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 196.474334,
+      "perStoreMs": 19.6474334,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 174.37350000000004,
+          "minMs": 7.234332999999992,
+          "maxMs": 39.472000000000094
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 32.139417999999864,
+          "minMs": 1.78712500000006,
+          "maxMs": 9.051082999999949
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 48.267832999999996,
+      "perStoreMs": 48.267832999999996,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 39.534583999999995,
+          "minMs": 39.534583999999995,
+          "maxMs": 39.534583999999995
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 8.86808300000007,
+          "minMs": 8.86808300000007,
+          "maxMs": 8.86808300000007
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 44.794624999999996,
+      "perStoreMs": 44.794624999999996,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 36.57174999999995,
+          "minMs": 36.57174999999995,
+          "maxMs": 36.57174999999995
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 8.849083999999948,
+          "minMs": 8.849083999999948,
+          "maxMs": 8.849083999999948
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 48.822874999999954,
+      "perStoreMs": 48.822874999999954,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 39.23370799999998,
+          "minMs": 39.23370799999998,
+          "maxMs": 39.23370799999998
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 10.320958000000019,
+          "minMs": 10.320958000000019,
+          "maxMs": 10.320958000000019
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 47.33675000000005,
+      "perStoreMs": 47.33675000000005,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 38.95662500000003,
+          "minMs": 38.95662500000003,
+          "maxMs": 38.95662500000003
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 9.77395899999999,
+          "minMs": 9.77395899999999,
+          "maxMs": 9.77395899999999
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 196.593125,
+      "perStoreMs": 19.6593125,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 174.32720800000004,
+          "minMs": 6.589999999999918,
+          "maxMs": 39.52779199999998
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 31.991208999999913,
+          "minMs": 1.6274999999999409,
+          "maxMs": 10.155415999999946
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 112.01045800000009,
+      "perStoreMs": 11.201045800000008,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 84.40587499999992,
+          "minMs": 3.2079579999999623,
+          "maxMs": 41.024791999999934
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 28.97037499999999,
+          "minMs": 1.5302090000000135,
+          "maxMs": 10.102082999999993
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 1410.5521669999998,
+      "perStoreMs": 14.105521669999998,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 1262.8724159999986,
+          "minMs": 5.644874999999956,
+          "maxMs": 51.540709000000106
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 320.43220999999926,
+          "minMs": 1.263082999999824,
+          "maxMs": 16.170333000000028
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 660.4938749999999,
+      "perStoreMs": 6.604938749999999,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 501.9232909999994,
+          "minMs": 2.5100420000001122,
+          "maxMs": 56.8074160000001
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 220.0304160000005,
+          "minMs": 1.1894579999998314,
+          "maxMs": 15.069666000000097
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 579.541625,
+      "perStoreMs": 5.79541625,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 442.4782049999999,
+          "minMs": 2.2603339999998298,
+          "maxMs": 47.591249999999945
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 202.1230840000013,
+          "minMs": 1.0886249999998654,
+          "maxMs": 11.758417000000009
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 1731.8801250000001,
+      "perStoreMs": 17.31880125,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 1546.6054129999995,
+          "minMs": 6.05054199999995,
+          "maxMs": 39.57458299999996
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 392.0922909999989,
+          "minMs": 1.3388330000002497,
+          "maxMs": 13.347791000000143
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 116.95354200000008,
+      "perStoreMs": 11.695354200000008,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 93.82745599999998,
+          "minMs": 3.297708000000057,
+          "maxMs": 43.28412500000002
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 36.464041000000066,
+          "minMs": 1.5613329999998768,
+          "maxMs": 11.321207999999956
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 204.18704100000002,
+      "perStoreMs": 20.418704100000003,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 181.96341800000005,
+          "minMs": 6.780915999999934,
+          "maxMs": 38.290917000000036
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 30.17274999999995,
+          "minMs": 1.5771669999999176,
+          "maxMs": 9.00283300000001
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 52.12062500000002,
+      "perStoreMs": 52.12062500000002,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 43.369542000000024,
+          "minMs": 43.369542000000024,
+          "maxMs": 43.369542000000024
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 10.51558399999999,
+          "minMs": 10.51558399999999,
+          "maxMs": 10.51558399999999
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 50.58908399999996,
+      "perStoreMs": 50.58908399999996,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 41.97129199999995,
+          "minMs": 41.97129199999995,
+          "maxMs": 41.97129199999995
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 10.757833000000005,
+          "minMs": 10.757833000000005,
+          "maxMs": 10.757833000000005
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 56.52895799999999,
+      "perStoreMs": 56.52895799999999,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 46.90504199999998,
+          "minMs": 46.90504199999998,
+          "maxMs": 46.90504199999998
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 12.460749999999962,
+          "minMs": 12.460749999999962,
+          "maxMs": 12.460749999999962
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 1,
+      "mode": "sequential",
+      "elapsedMs": 65.329208,
+      "perStoreMs": 65.329208,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 1,
+          "totalMs": 55.364959,
+          "minMs": 55.364959,
+          "maxMs": 55.364959
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 1,
+          "totalMs": 16.527791999999977,
+          "minMs": 16.527791999999977,
+          "maxMs": 16.527791999999977
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 249.68004199999996,
+      "perStoreMs": 24.968004199999996,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 221.109958,
+          "minMs": 9.564583999999968,
+          "maxMs": 49.29554099999996
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 45.9128340000002,
+          "minMs": 2.0668339999999716,
+          "maxMs": 12.721250000000055
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 10,
+      "mode": "sequential",
+      "elapsedMs": 134.57062500000006,
+      "perStoreMs": 13.457062500000006,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 10,
+          "totalMs": 105.10370899999953,
+          "minMs": 3.6920410000000174,
+          "maxMs": 45.7087919999999
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 10,
+          "totalMs": 39.15270800000019,
+          "minMs": 1.7224170000001777,
+          "maxMs": 11.093249999999898
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 1129.5310410000002,
+      "perStoreMs": 11.295310410000003,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 1015.4282159999998,
+          "minMs": 4.911583999999948,
+          "maxMs": 40.329834000000005
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 226.88812499999972,
+          "minMs": 1.1860420000002705,
+          "maxMs": 9.158791999999949
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "count": 100,
+      "mode": "sequential",
+      "elapsedMs": 474.138875,
+      "perStoreMs": 4.74138875,
+      "measureSummaries": {
+        "livestore:makeAdapter": {
+          "count": 100,
+          "totalMs": 362.5790400000003,
+          "minMs": 2.279166999999916,
+          "maxMs": 39.96391599999993
+        },
+        "@livestore/common:leader-thread:recreateDb": {
+          "count": 100,
+          "totalMs": 164.76866999999936,
+          "minMs": 1.0986249999998563,
+          "maxMs": 9.56837500000006
+        }
+      }
+    }
+  ]
+}

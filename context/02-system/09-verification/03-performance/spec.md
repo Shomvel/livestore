@@ -17,10 +17,17 @@ Draft.
   event-streaming suite, same measurement-collection pattern.
 - CI job `perf-test` runs the store suite.
 
-The reporter prints per-run tables; there is no baseline storage, no
-cross-run comparison, and no threshold that can fail a run. Perf runs today
-produce *measurements*, not *verdicts*. Gating is now contracted
-(LS.SYS.VER.PERF-R02;
+The reporter prints per-run tables and writes `measurements.json` in the
+Playwright output directory. The JSON includes raw measurements,
+`runCount`/`measuredCount`/`missingCount`, median/IQR/min/max, system details,
+Node/Playwright/Chromium versions and git metadata. A passed latency run whose
+Event Timing entry does not arrive within 100 ms contributes no sample; it is
+counted as missing rather than assigned a fabricated duration. Summaries cover
+only measured runs.
+
+There is no automated baseline selection, cross-run comparison, or threshold that can fail
+a run. Perf runs today produce _measurements_, not _verdicts_. Gating is now
+contracted (LS.SYS.VER.PERF-R02;
 [DELTA-001](./.delta/DELTA-001-perf-gating-missing.md)).
 
 ## Open Design Questions

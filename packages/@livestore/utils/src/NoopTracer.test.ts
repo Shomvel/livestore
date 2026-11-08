@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { NodeFileSystemWithWatch, NodeRecursiveWatchLayer } from '@livestore/utils/node'
 
-import { makeNoopSpan, makeNoopTracer } from './NoopTracer.ts'
+import { makeNoopSpan, makeNoopTracer, NoopTracer } from './NoopTracer.ts'
 
 describe('NoopTracer', () => {
   it('returns the canonical invalid OpenTelemetry span context', () => {
@@ -12,6 +12,10 @@ describe('NoopTracer', () => {
 
     expect(spanContext).toBe(INVALID_SPAN_CONTEXT)
     expect(isSpanContextValid(spanContext)).toBe(false)
+  })
+
+  it('returns the explicitly detectable repository tracer type', () => {
+    expect(makeNoopTracer()).toBeInstanceOf(NoopTracer)
   })
 
   it('runs active-span callbacks for every tracer overload', () => {
