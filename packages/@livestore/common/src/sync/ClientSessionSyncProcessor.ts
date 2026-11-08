@@ -561,15 +561,18 @@ export const makeClientSessionSyncProcessor = Effect.fn('makeClientSessionSyncPr
     Effect.gen(function* () {
       const writeTables = new Set<string>()
       // A rebase step can materialize thousands of events, so look up per-event data by sequence number instead of
-      // scanning the payload for each event.
+      // scanning the payload for each event. Advance results contain only incoming events and need no classification.
       const leaderHashOf = (event: LiveStoreEvent.Client.Encoded) =>
         step.leaderHashes.get(EventSequenceNumber.Client.toString(event.seqNum)) ?? Option.none()
-      const incomingByPosition = new Map<string, Array<LiveStoreEvent.Client.Encoded>>()
-      for (const event of step.payload.newEvents) {
-        const key = positionKey(event)
-        const events = incomingByPosition.get(key)
-        if (events === undefined) incomingByPosition.set(key, [event])
-        else events.push(event)
+      const incomingByPosition =
+        result._tag === 'advance' ? undefined : new Map<string, Array<LiveStoreEvent.Client.Encoded>>()
+      if (incomingByPosition !== undefined) {
+        for (const event of step.payload.newEvents) {
+          const key = positionKey(event)
+          const events = incomingByPosition.get(key)
+          if (events === undefined) incomingByPosition.set(key, [event])
+          else events.push(event)
+        }
       }
       if (result._tag === 'advance') {
         for (const event of result.confirmedEvents) {
@@ -597,11 +600,12 @@ export const makeClientSessionSyncProcessor = Effect.fn('makeClientSessionSyncPr
         }
       }
       for (const item of result.newEvents) {
-        // A replayed pending event can temporarily share a sequence number with a later incoming event.
+        // During a rebase, a replayed pending event can temporarily share a sequence number with a later incoming event.
         const incoming =
+          result._tag === 'advance' ||
           incomingByPosition
-            .get(positionKey(item))
-            ?.some((event) => LiveStoreEvent.Client.isEqualEncoded(event, item)) === true
+            ?.get(positionKey(item))
+            ?.some((event) => event === item || LiveStoreEvent.Client.isEqualEncoded(event, item)) === true
         const materialized = yield* materializeEvent(item, {
           materializerHashLeader: incoming === true ? leaderHashOf(item) : Option.none(),
         })

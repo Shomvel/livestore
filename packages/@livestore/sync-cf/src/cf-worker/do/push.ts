@@ -19,6 +19,7 @@ import * as DoCtx from './layer.ts'
 const pullResponseJsonSchema = Schema.toCodecJson(SyncMessage.PullResponse)
 const encodePullResponse = Schema.encodeSync(pullResponseJsonSchema)
 const jsonStringify = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
+const textEncoder = new TextEncoder()
 type PullBatchItem = SyncMessage.PullResponse['batch'][number]
 type PushBatchItem = SyncMessage.PushRequest['batch'][number]
 
@@ -89,11 +90,20 @@ export const makePush =
           }).pipe(blockConcurrencyWhile(ctx))
 
           const connectedClients = ctx.getWebSockets()
+          const rpcSubscriptions = Array.from(
+            ctx.storage.kv.list<RpcSubscription>({ prefix: rpcSubscriptionKeyPrefix }),
+          )
 
           // Preparing chunks of responses to make sure we don't exceed the WS message size limit.
           if (EffectArray.isReadonlyArrayNonEmpty(pushRequest.batch) === false) {
             return
           }
+          if (
+            connectedClients.length === 0 &&
+            rpcSubscriptions.length === 0 &&
+            canSkipPullResponseEncoding(pushRequest.batch, backendId, createdAt)
+          )
+            return
 
           const responses = yield* splitArrayBySize({
             maxItems: MAX_PUSH_EVENTS_PER_REQUEST,
@@ -101,12 +111,10 @@ export const makePush =
             encode: (items: ReadonlyArray<PushBatchItem>) =>
               encodePullResponse(
                 SyncMessage.PullResponse.make({
-                  batch: items.map(
-                    (eventEncoded): PullBatchItem => ({
-                      eventEncoded,
-                      metadata: Option.some(SyncMessage.SyncMetadata.make({ createdAt })),
-                    }),
-                  ),
+                  batch: items.map((eventEncoded): PullBatchItem => ({
+                    eventEncoded,
+                    metadata: Option.some(SyncMessage.SyncMetadata.make({ createdAt })),
+                  })),
                   pageInfo: SyncBackend.pageInfoNoMore,
                   backendId,
                 }),
@@ -168,9 +176,6 @@ export const makePush =
 
           // Subscribers live in the DO's KV storage (single source of truth), so fan-out survives reconstruction.
           // emitStreamResponse reconstructs each client stub from its callerContext.
-          const rpcSubscriptions = Array.from(
-            ctx.storage.kv.list<RpcSubscription>({ prefix: rpcSubscriptionKeyPrefix }),
-          )
           if (rpcSubscriptions.length > 0) {
             for (const [, subscription] of rpcSubscriptions) {
               for (const { response } of responses) {
@@ -246,3 +251,17 @@ const blockConcurrencyWhile =
 
       return yield* exit
     })
+
+/** A raw event cannot exceed the whole raw batch; response and metadata envelopes provide a conservative upper bound. */
+const canSkipPullResponseEncoding = (batch: ReadonlyArray<PushBatchItem>, backendId: string, createdAt: string) => {
+  const emptyResponseSize = encodedByteLength(
+    encodePullResponse(SyncMessage.PullResponse.make({ batch: [], pageInfo: SyncBackend.pageInfoNoMore, backendId })),
+  )
+  const itemEnvelopeSize = encodedByteLength({
+    eventEncoded: null,
+    metadata: Option.some(SyncMessage.SyncMetadata.make({ createdAt })),
+  })
+  return encodedByteLength(batch) + emptyResponseSize + itemEnvelopeSize <= MAX_WS_MESSAGE_BYTES
+}
+
+const encodedByteLength = (value: unknown) => textEncoder.encode(JSON.stringify(value)).byteLength
