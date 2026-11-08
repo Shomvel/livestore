@@ -22,10 +22,40 @@ import { shouldNeverHappen } from '@livestore/utils'
 
 import { schema } from './__tests__/fixture.tsx'
 import { StoreRegistryProvider } from './StoreRegistryContext.tsx'
-import { useStore } from './useStore.ts'
+import { type ReactApi, useStore, withReactApi } from './useStore.ts'
 
 /** Verifies: LS.SYS.STORE-R06, LS.SYS.INT.REACT-R01 */
 describe('experimental useStore', () => {
+  it('reuses React API methods for the same Store instance', async () => {
+    const storeRegistry = new StoreRegistry()
+    const store = withReactApi(await storeRegistry.getOrLoadPromise(testStoreOptions()))
+    const { useQuery, useClientDocument, useSyncStatus } = store
+
+    try {
+      expect(withReactApi(store)).toBe(store)
+      expect(store.useQuery).toBe(useQuery)
+      expect(store.useClientDocument).toBe(useClientDocument)
+      expect(store.useSyncStatus).toBe(useSyncStatus)
+    } finally {
+      await storeRegistry.dispose()
+    }
+  })
+
+  it('does not share React API methods between Store instances', async () => {
+    const storeRegistry = new StoreRegistry()
+    const storeA = withReactApi(await storeRegistry.getOrLoadPromise(testStoreOptions({ storeId: 'store-a' })))
+    const storeB = withReactApi(await storeRegistry.getOrLoadPromise(testStoreOptions({ storeId: 'store-b' })))
+
+    try {
+      expect(storeA).not.toBe(storeB)
+      expect(storeA.useQuery).not.toBe(storeB.useQuery)
+      expect(storeA.useClientDocument).not.toBe(storeB.useClientDocument)
+      expect(storeA.useSyncStatus).not.toBe(storeB.useSyncStatus)
+    } finally {
+      await storeRegistry.dispose()
+    }
+  })
+
   it('should return the same promise instance for concurrent getOrLoadStore calls', async () => {
     const storeRegistry = new StoreRegistry()
     const options = testStoreOptions()
@@ -145,6 +175,70 @@ describe('experimental useStore', () => {
     await cleanupAfterUnmount(unmount)
   })
 
+  it('does not repeat retain for equivalent inline options', async () => {
+    const storeRegistry = new StoreRegistry()
+    const options = testStoreOptions()
+    const retainSpy = vi.spyOn(storeRegistry, 'retain')
+
+    let hook: RenderHookResult<Store<typeof schema>, RegistryStoreOptions<typeof schema>> | undefined
+    await act(async () => {
+      hook = renderHook((opts) => useStore(opts), {
+        initialProps: options,
+        wrapper: makeProvider(storeRegistry, { suspense: true }),
+      })
+    })
+    const { result, rerender, unmount } = hook ?? shouldNeverHappen('renderHook failed')
+    await waitForStoreReady(result)
+
+    expect(retainSpy).toHaveBeenCalledTimes(1)
+    retainSpy.mockClear()
+
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        rerender(cloneStoreOptions(options))
+      })
+    }
+
+    expect(retainSpy).not.toHaveBeenCalled()
+
+    retainSpy.mockRestore()
+    await cleanupAfterUnmount(unmount)
+  })
+
+  it('reuses React API methods when a Store is remounted', async () => {
+    const storeRegistry = new StoreRegistry()
+    const options = testStoreOptions()
+
+    let firstHook: RenderHookResult<Store<typeof schema> & ReactApi, RegistryStoreOptions<typeof schema>> | undefined
+    await act(async () => {
+      firstHook = renderHook(() => useStore(options), {
+        wrapper: makeProvider(storeRegistry, { suspense: true }),
+      })
+    })
+    const mountedFirstHook = firstHook ?? shouldNeverHappen('first renderHook failed')
+    await waitForStoreReady(mountedFirstHook.result)
+    const firstStore = mountedFirstHook.result.current
+    const { useQuery, useClientDocument, useSyncStatus } = firstStore
+    await cleanupAfterUnmount(mountedFirstHook.unmount)
+
+    let secondHook: RenderHookResult<Store<typeof schema> & ReactApi, RegistryStoreOptions<typeof schema>> | undefined
+    await act(async () => {
+      secondHook = renderHook(() => useStore(options), {
+        wrapper: makeProvider(storeRegistry, { suspense: true }),
+      })
+    })
+    const mountedSecondHook = secondHook ?? shouldNeverHappen('second renderHook failed')
+    await waitForStoreReady(mountedSecondHook.result)
+    const secondStore = mountedSecondHook.result.current
+    await cleanupAfterUnmount(mountedSecondHook.unmount)
+    await storeRegistry.dispose()
+
+    expect(secondStore).toBe(firstStore)
+    expect(secondStore.useQuery).toBe(useQuery)
+    expect(secondStore.useClientDocument).toBe(useClientDocument)
+    expect(secondStore.useSyncStatus).toBe(useSyncStatus)
+  })
+
   it('handles switching between different storeId values', async () => {
     const storeRegistry = new StoreRegistry()
 
@@ -187,13 +281,14 @@ describe('experimental useStore', () => {
     const storeRegistry = new StoreRegistry()
     const options = testStoreOptions()
     const getOrLoadSpy = vi.spyOn(storeRegistry, 'getOrLoadPromise')
+    const renderedStores: Array<Store<any> & ReactApi> = []
 
     let view: RenderResult | undefined
     await act(async () => {
       view = render(
         <StoreRegistryProvider storeRegistry={storeRegistry}>
           <React.Suspense fallback={makeSuspenseFallback()}>
-            <StoreWithActionState options={options} />
+            <StoreWithActionState options={options} renderedStores={renderedStores} />
           </React.Suspense>
         </StoreRegistryProvider>,
       )
@@ -204,6 +299,8 @@ describe('experimental useStore', () => {
     await waitForSuspenseResolved(renderedView)
     expect(renderedView.getByTestId('state').textContent).toBe('none')
     expect(renderedView.getByTestId('pending').textContent).toBe('false')
+    const initialStore = renderedStores.at(-1)!
+    const { useQuery, useClientDocument, useSyncStatus } = initialStore
 
     // After store is loaded, clear spy to only track calls during the transition render
     getOrLoadSpy.mockClear()
@@ -224,6 +321,11 @@ describe('experimental useStore', () => {
       expect(renderedView.getByTestId('state').textContent).toBe('updated')
       expect(renderedView.getByTestId('pending').textContent).toBe('false')
     })
+    const transitionedStore = renderedStores.at(-1)!
+    expect(transitionedStore).toBe(initialStore)
+    expect(transitionedStore.useQuery).toBe(useQuery)
+    expect(transitionedStore.useClientDocument).toBe(useClientDocument)
+    expect(transitionedStore.useSyncStatus).toBe(useSyncStatus)
 
     getOrLoadSpy.mockRestore()
     await cleanupAfterUnmount(() => renderedView.unmount())
@@ -275,8 +377,15 @@ const StoreConsumer = ({ options }: { options: RegistryStoreOptions<any> }) => {
 }
 
 /** Component that combines useStore with useActionState to test transition compatibility. */
-const StoreWithActionState = ({ options }: { options: RegistryStoreOptions<any> }) => {
-  useStore(options)
+const StoreWithActionState = ({
+  options,
+  renderedStores,
+}: {
+  options: RegistryStoreOptions<any>
+  renderedStores: Array<Store<any> & ReactApi>
+}) => {
+  const store = useStore(options)
+  renderedStores.push(store)
 
   const [state, dispatch, isPending] = React.useActionState(
     (_prev: string | undefined, value: string): string => value,

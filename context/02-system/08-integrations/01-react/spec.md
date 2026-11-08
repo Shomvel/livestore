@@ -11,13 +11,13 @@ Draft.
 
 ## Surface
 
-| Hook / export | File | Purpose |
-| --- | --- | --- |
-| `useStore` | `useStore.ts` | Acquire a store from the registry (suspense-aware boot) |
-| `useQuery` | `useQuery.ts` | Subscribe to any queryable; synchronous first read |
-| `useClientDocument` | `useClientDocument.ts` | Read/update a client document like local state |
-| `useSyncStatus` | `useSyncStatus.ts` | Observe sync/network status |
-| `StoreRegistryContext` | `StoreRegistryContext.tsx` | Scope store resolution per subtree |
+| Hook / export          | File                       | Purpose                                                 |
+| ---------------------- | -------------------------- | ------------------------------------------------------- |
+| `useStore`             | `useStore.ts`              | Acquire a store from the registry (suspense-aware boot) |
+| `useQuery`             | `useQuery.ts`              | Subscribe to any queryable; synchronous first read      |
+| `useClientDocument`    | `useClientDocument.ts`     | Read/update a client document like local state          |
+| `useSyncStatus`        | `useSyncStatus.ts`         | Observe sync/network status                             |
+| `StoreRegistryContext` | `StoreRegistryContext.tsx` | Scope store resolution per subtree                      |
 
 `useRcResource` (`useRcResource.ts`) implements the reference-counted
 resource pattern behind LS.SYS.INT.REACT-R03: caches are bucketed in a
@@ -41,6 +41,16 @@ subscription switch. Consequence: updates are commit-atomic and deduped,
 but the ref+effect model is not structurally tear-proof under concurrent
 rendering (LS.SYS.INT.REACT-R04 flags this as unverified; issue #1422).
 
+Subscription stack capture is development-only. Production subscriptions use
+an empty stack-info frame list; query values, error propagation and rerender
+behavior are unchanged, but production query errors and DevTools subscription
+diagnostics no longer include the React component stack.
+
+`useStore` retains by registry and `storeId`, so new equivalent options objects
+do not release and reacquire the same store on each render. React helper methods
+are attached once per Store using a weak cache, preserving method identity
+without keeping disposed Stores alive.
+
 ## Write Path (`useClientDocument`)
 
 `setState` resolves functional updates against the current ref value,
@@ -55,7 +65,7 @@ during render (`client-document-get-query.ts:47-53`; LS.SYS.INT-R06).
 
 `useStore` calls `storeRegistry.getOrLoadPromise` on every render,
 deliberately un-memoized so React transitions stay committable; `retain()`
-runs in `useEffect` *after* `React.use` to keep hook order stable across
+runs in `useEffect` _after_ `React.use` to keep hook order stable across
 suspensions, accepting a documented timing-gap race when `unusedCacheTime`
 is below ~100ms (issue #916). The returned store is wrapped by
 `withReactApi`, which attaches `useQuery`/`useClientDocument`/

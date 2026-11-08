@@ -322,6 +322,249 @@ describe('a dynamic graph', () => {
   })
 })
 
+describe('dependency retracking', () => {
+  const makeDynamicGraph = () => {
+    const graph = new ReactiveGraph()
+    graph.context = {}
+
+    const selector = graph.makeRef<'left' | 'right'>('left', { label: 'selector' })
+    const left = graph.makeRef(1, { label: 'left' })
+    const right = graph.makeRef(10, { label: 'right' })
+    const stable = graph.makeRef(1, { label: 'stable' })
+
+    return { graph, selector, left, right, stable }
+  }
+
+  it('removes stale thunk dependencies while retaining shared dependencies', () => {
+    const { graph, selector, left, right, stable } = makeDynamicGraph()
+    const selected = graph.makeThunk((get) => {
+      const value = get(selector) === 'left' ? get(left) : get(right)
+      return value + get(stable)
+    })
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(selected)))
+
+    effect.doEffect()
+    graph.setRef(selector, 'right')
+
+    expect(observed).toEqual([2, 11])
+    expect(left.super.has(selected)).toBe(false)
+    expect(right.super.has(selected)).toBe(true)
+    expect(stable.super.has(selected)).toBe(true)
+
+    graph.setRef(left, 2)
+    expect(selected.recomputations).toBe(2)
+    expect(observed).toHaveLength(2)
+
+    graph.setRef(right, 20)
+    expect(observed).toEqual([2, 11, 21])
+
+    graph.setRef(stable, 2)
+    expect(observed).toEqual([2, 11, 21, 22])
+  })
+
+  it('removes stale effect dependencies while retaining shared dependencies', () => {
+    const { graph, selector, left, right, stable } = makeDynamicGraph()
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => {
+      const value = get(selector) === 'left' ? get(left) : get(right)
+      observed.push(value + get(stable))
+    })
+
+    effect.doEffect()
+    graph.setRef(selector, 'right')
+
+    expect(observed).toEqual([2, 11])
+    expect(left.super.has(effect)).toBe(false)
+    expect(right.super.has(effect)).toBe(true)
+    expect(stable.super.has(effect)).toBe(true)
+
+    graph.setRef(left, 2)
+    expect(effect.invocations).toBe(2)
+    expect(observed).toHaveLength(2)
+
+    graph.setRef(right, 20)
+    expect(observed).toEqual([2, 11, 21])
+
+    graph.setRef(stable, 2)
+    expect(observed).toEqual([2, 11, 21, 22])
+  })
+
+  it('keeps dependencies read before a failed recomputation and drops abandoned ones', () => {
+    const { graph, selector, left, right } = makeDynamicGraph()
+    let shouldThrow = false
+    const selected = graph.makeThunk((get) => {
+      const value = get(selector) === 'left' ? get(left) : get(right)
+      if (shouldThrow) throw new Error('recompute failed')
+      return value
+    })
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(selected)))
+
+    effect.doEffect()
+    shouldThrow = true
+    expect(() => graph.setRef(selector, 'right')).toThrow('recompute failed')
+
+    expect(left.super.has(selected)).toBe(false)
+    expect(right.super.has(selected)).toBe(true)
+
+    shouldThrow = false
+    graph.setRef(left, 2)
+    expect(observed).toEqual([1])
+
+    graph.setRef(right, 20)
+    expect(observed).toEqual([1, 20])
+  })
+
+  it('does not destroy former dependents when an abandoned dependency is destroyed', () => {
+    const { graph, selector, left, right } = makeDynamicGraph()
+    const selected = graph.makeThunk((get) => (get(selector) === 'left' ? get(left) : get(right)))
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => {
+      if (get(selector) === 'left') {
+        get(left)
+      } else {
+        get(right)
+      }
+      observed.push(get(selected))
+    })
+
+    effect.doEffect()
+    graph.setRef(selector, 'right')
+    graph.destroyNode(left)
+
+    expect(selected.isDestroyed).toBe(false)
+    expect(effect.isDestroyed).toBe(false)
+
+    graph.setRef(right, 20)
+    expect(observed).toEqual([1, 10, 20])
+  })
+})
+
+describe('result versioning', () => {
+  const makeGraph = () => {
+    const graph = new ReactiveGraph()
+    graph.context = {}
+    return graph
+  }
+
+  it('does not invalidate dependents for equivalent ref writes', () => {
+    const graph = makeGraph()
+    const source = graph.makeRef({ value: 1 })
+    const derived = graph.makeThunk((get) => get(source).value)
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(derived)))
+
+    effect.doEffect()
+    graph.setRef(source, { value: 1 })
+
+    expect(derived.recomputations).toBe(1)
+    expect(effect.invocations).toBe(1)
+    expect(observed).toEqual([1])
+
+    graph.setRef(source, { value: 2 })
+    expect(derived.recomputations).toBe(2)
+    expect(effect.invocations).toBe(2)
+    expect(observed).toEqual([1, 2])
+  })
+
+  it('preserves equivalent thunk results and skips downstream effects', () => {
+    const graph = makeGraph()
+    const source = graph.makeRef(0)
+    const parity = graph.makeThunk((get) => ({ value: get(source) % 2 }))
+    const observed: { value: number }[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(parity)))
+
+    effect.doEffect()
+    const firstResult = parity.previousResult
+    graph.setRef(source, 2)
+
+    expect(parity.recomputations).toBe(2)
+    expect(parity.previousResult).toBe(firstResult)
+    expect(effect.invocations).toBe(1)
+    expect(observed).toEqual([{ value: 0 }])
+    expect(observed[0]).toBe(firstResult)
+
+    graph.setRef(source, 3)
+    expect(parity.recomputations).toBe(3)
+    expect(parity.previousResult).not.toBe(firstResult)
+    expect(effect.invocations).toBe(2)
+    expect(observed).toEqual([{ value: 0 }, { value: 1 }])
+  })
+
+  it('cuts off equivalent results after dynamic dependencies change', () => {
+    const graph = makeGraph()
+    const selector = graph.makeRef<'left' | 'right'>('left')
+    const left = graph.makeRef(1)
+    const right = graph.makeRef(1)
+    const selected = graph.makeThunk((get) => ({ value: get(selector) === 'left' ? get(left) : get(right) }))
+    const observed: { value: number }[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(selected)))
+
+    effect.doEffect()
+    const firstResult = selected.previousResult
+    graph.setRef(selector, 'right')
+
+    expect(selected.recomputations).toBe(2)
+    expect(selected.previousResult).toBe(firstResult)
+    expect(effect.invocations).toBe(1)
+    expect(observed).toEqual([{ value: 1 }])
+
+    graph.setRef(right, 2)
+    expect(effect.invocations).toBe(2)
+    expect(observed).toEqual([{ value: 1 }, { value: 2 }])
+
+    graph.setRef(left, 3)
+    expect(selected.recomputations).toBe(3)
+    expect(effect.invocations).toBe(2)
+  })
+
+  it('runs a multi-dependency effect only for changed dependency results', () => {
+    const graph = makeGraph()
+    const leftRef = graph.makeRef(0)
+    const rightRef = graph.makeRef(0)
+    const left = graph.makeThunk((get) => ({ parity: get(leftRef) % 2 }))
+    const right = graph.makeThunk((get) => ({ value: get(rightRef) }))
+    const observed: string[] = []
+    const effect = graph.makeEffect((get) => observed.push(`${get(left).parity}:${get(right).value}`))
+
+    effect.doEffect()
+    graph.setRef(leftRef, 2)
+
+    expect(left.recomputations).toBe(2)
+    expect(right.recomputations).toBe(1)
+    expect(effect.invocations).toBe(1)
+    expect(observed).toEqual(['0:0'])
+
+    graph.setRef(rightRef, 1)
+    expect(effect.invocations).toBe(2)
+    expect(observed).toEqual(['0:0', '0:1'])
+
+    graph.setRefs([
+      [leftRef, 3],
+      [rightRef, 2],
+    ])
+    expect(effect.invocations).toBe(3)
+    expect(observed).toEqual(['0:0', '0:1', '1:2'])
+  })
+
+  it('does not invoke destroyed effects when dependency results change', () => {
+    const graph = makeGraph()
+    const source = graph.makeRef(0)
+    const derived = graph.makeThunk((get) => get(source) + 1)
+    const observed: number[] = []
+    const effect = graph.makeEffect((get) => observed.push(get(derived)))
+
+    effect.doEffect()
+    graph.destroyNode(effect)
+    graph.setRef(source, 2)
+
+    expect(derived.recomputations).toBe(1)
+    expect(effect.invocations).toBe(1)
+    expect(observed).toEqual([1])
+  })
+})
+
 describe('a diamond shaped graph', () => {
   const makeGraph = () => {
     const graph = new ReactiveGraph()
@@ -420,9 +663,7 @@ describe('error handling', () => {
     const graph = new ReactiveGraph()
     const a = graph.makeRef(1)
     const b = graph.makeThunk((get) => get(a) + 1)
-    expect(() => b.computeResult()).toThrowErrorMatchingInlineSnapshot(
-      `[Error: LiveStore Error: \`context\` not set on ReactiveGraph (graph-19)]`,
-    )
+    expect(() => b.computeResult()).toThrow(`LiveStore Error: \`context\` not set on ReactiveGraph (${graph.id})`)
   })
 })
 

@@ -1,7 +1,7 @@
 import * as ReactTesting from '@testing-library/react'
 import React from 'react'
 import * as ReactWindow from 'react-window'
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 
 import { makeInMemoryAdapter } from '@livestore/adapter-web'
 import { provideOtel } from '@livestore/common'
@@ -15,11 +15,18 @@ import { events, makeTodoMvcReact, schema, tables } from './__tests__/fixture.ts
 import { __resetUseRcResourceCache } from './useRcResource.ts'
 import { withReactApi } from './useStore.ts'
 
+declare global {
+  interface ErrorConstructor {
+    prepareStackTrace: ((error: Error, stackTraces: unknown[]) => unknown) | undefined
+  }
+}
+
 /** Verifies: LS.SYS.INT.REACT-R01, LS.SYS.INT.REACT-R04, LS.SYS.INT.REACT-R05 */
 Vitest.describe.each([{ strictMode: true }, { strictMode: false }] as const)(
   'useQuery (strictMode=%s)',
   ({ strictMode }) => {
     Vitest.afterEach(() => {
+      vi.unstubAllEnvs()
       RG.__resetIds()
       __resetUseRcResourceCache()
     })
@@ -49,6 +56,47 @@ Vitest.describe.each([{ strictMode: true }, { strictMode: false }] as const)(
         expect(result.current[0]!.text).toBe('buy milk')
         expect(renderCount.val).toBe(2)
         expect(store[StoreInternalsSymbol].reactivityGraph.getSnapshot({ includeResults: true })).toMatchSnapshot()
+      }),
+    )
+
+    Vitest.live('captures subscription stack info in development', () =>
+      Effect.gen(function* () {
+        vi.stubEnv('NODE_ENV', 'development')
+        const { wrapper, store } = yield* makeTodoMvcReact({ strictMode })
+        const num$ = signal(0)
+        const originalPrepareStackTrace = Error.prepareStackTrace
+        const prepareStackTrace = vi.fn(() => '')
+        Error.prepareStackTrace = prepareStackTrace
+
+        try {
+          ReactTesting.renderHook(() => store.useQuery(num$), { wrapper })
+          expect(prepareStackTrace).toHaveBeenCalled()
+        } finally {
+          Error.prepareStackTrace = originalPrepareStackTrace
+        }
+      }),
+    )
+
+    Vitest.live('skips stack capture without changing subscriptions in production', () =>
+      Effect.gen(function* () {
+        vi.stubEnv('NODE_ENV', 'production')
+        const { wrapper, store } = yield* makeTodoMvcReact({ strictMode })
+        const num$ = signal(0)
+        const originalPrepareStackTrace = Error.prepareStackTrace
+        const prepareStackTrace = vi.fn(() => '')
+        Error.prepareStackTrace = prepareStackTrace
+
+        try {
+          const { result } = ReactTesting.renderHook(() => store.useQuery(num$), { wrapper })
+
+          expect(prepareStackTrace).not.toHaveBeenCalled()
+          expect(result.current).toBe(0)
+
+          ReactTesting.act(() => store.setSignal(num$, 1))
+          expect(result.current).toBe(1)
+        } finally {
+          Error.prepareStackTrace = originalPrepareStackTrace
+        }
       }),
     )
 

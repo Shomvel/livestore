@@ -11,6 +11,7 @@ import {
   Hash,
   Layer,
   ManagedRuntime,
+  MutableHashMap,
   Result,
   type OtelTracer,
   RcMap,
@@ -120,9 +121,13 @@ type StoreRegistryConfig = {
  */
 class StoreCacheKey implements Equal.Equal {
   readonly options: RegistryStoreOptions<any, any, any>
+  readonly storeId: string
+  readonly #hash: number
 
   constructor(options: RegistryStoreOptions<any, any, any>) {
     this.options = options
+    this.storeId = options.storeId
+    this.#hash = Hash.string(this.storeId)
   }
 
   /**
@@ -131,11 +136,11 @@ class StoreCacheKey implements Equal.Equal {
    * store's configuration.
    */
   [Equal.symbol](that: Equal.Equal): boolean {
-    return that instanceof StoreCacheKey && this.options.storeId === that.options.storeId
+    return that instanceof StoreCacheKey && this.storeId === that.storeId
   }
 
   [Hash.symbol](): number {
-    return Hash.string(this.options.storeId)
+    return this.#hash
   }
 }
 
@@ -170,6 +175,19 @@ export class StoreRegistry {
   readonly #loadingPromises: Map<string, Promise<Store<any, any>>> = new Map()
 
   /**
+   * Loaded-store snapshots paired with their RcMap entry. Entry identity and a positive refCount
+   * make retained cache hits safe to return without running an Effect or creating a tracing span.
+   */
+  readonly #loadedStores: Map<
+    string,
+    {
+      readonly store: Store<any, any>
+      readonly entry: RcMap.State.Entry<Store<any, any>, UnknownError>
+      readonly key: StoreCacheKey
+    }
+  > = new Map()
+
+  /**
    * Creates a new StoreRegistry instance.
    *
    * @example
@@ -196,6 +214,14 @@ export class StoreRegistry {
         // Merge registry defaults with call-site options (call-site takes precedence)
         const mergedOptions = { ...config.defaultOptions, ...options }
         return createStore(mergedOptions).pipe(
+          Effect.tap((store) =>
+            Effect.addFinalizer(() =>
+              Effect.sync(() => {
+                const cached = this.#loadedStores.get(mergedOptions.storeId)
+                if (cached?.store === store) this.#loadedStores.delete(mergedOptions.storeId)
+              }),
+            ),
+          ),
           Effect.catchDefect((cause) => UnknownError.make({ cause })),
           Effect.withSpan(`StoreRegistry.lookup:${mergedOptions.storeId}`),
           Effect.provide(
@@ -245,6 +271,11 @@ export class StoreRegistry {
       // Cast options to satisfy StoreCacheKey's wider type (type safety enforced at API boundary)
       const key = new StoreCacheKey(options)
       const store = yield* RcMap.get(this.#rcMap, key)
+      const state = this.#rcMap.state
+      if (state._tag === 'Open') {
+        const entry = MutableHashMap.get(state.map, key)
+        if (entry._tag === 'Some') this.#loadedStores.set(options.storeId, { store, entry: entry.value, key })
+      }
 
       return store as Store<TSchema, TContext>
     }).pipe(Effect.withSpan(`StoreRegistry.getOrLoad:${options.storeId}`))
@@ -272,6 +303,17 @@ export class StoreRegistry {
   >(
     options: RegistryStoreOptions<TSchema, TContext, TSyncPayloadSchema>,
   ): Store<TSchema, TContext> | Promise<Store<TSchema, TContext>> => {
+    const { storeId } = options
+    const cachedStore = this.#loadedStores.get(storeId)
+    const state = this.#rcMap.state
+    if (cachedStore !== undefined && state._tag === 'Open') {
+      const entry = MutableHashMap.get(state.map, cachedStore.key)
+      // Active references prevent eviction; entry identity excludes an older generation of the same storeId.
+      if (entry._tag === 'Some' && entry.value === cachedStore.entry && entry.value.refCount > 0) {
+        return cachedStore.store as Store<TSchema, TContext>
+      }
+    }
+
     const exit = this.getOrLoad(options).pipe(Effect.scoped, Effect.runSyncExitWith(this.#context))
 
     if (Exit.isSuccess(exit) === true) return exit.value
@@ -287,8 +329,6 @@ export class StoreRegistry {
       // Handle synchronous failure
       throw Cause.squash(exit.cause)
     }
-
-    const { storeId } = options
 
     // Return cached promise if one exists (ensures concurrent calls get the same Promise reference)
     const cached = this.#loadingPromises.get(storeId)

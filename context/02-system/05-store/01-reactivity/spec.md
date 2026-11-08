@@ -31,29 +31,32 @@ implemented):
   maintained eagerly as edges change), so a node never observes a mix of
   old and new inputs.
 - **Equality cutoff:** each thunk compares against its previous result and
-  stops propagation when equal. Db queries use an eagerly-built
-  `Schema.toEquivalence`; supplying `map` disables the equivalence, so
-  mapped queries always re-propagate (`db-query.ts:332-346`;
-  LS.SYS.STORE.RX-R05).
+  stops propagation when equal, retaining the previous object identity and
+  result version. Db queries use an eagerly-built `Schema.toEquivalence` when
+  available; otherwise the graph's default deep equality applies, including
+  queries with `map`. Queries can still recompute and execute SQL to establish
+  equality (`db-query.ts:332-346`; LS.SYS.STORE.RX-R05;
+  [decision 0002](./.decisions/0002-versioned-equality-cutoff.md)).
 - **Opt-out:** `commit({ skipRefresh: true }, …)` defers the refresh to a
   later manual refresh / `runDeferredEffects` pass; subscriber effects run
   through the adapter-provided `batchUpdates` wrapper.
 
 ## Query Kinds
 
-| Kind | Constructor | Identity (`def.hash`) | Notes |
-| --- | --- | --- | --- |
-| Db query | `queryDb()` | `queryString + deps + extraDeps` | `SessionIdSymbol` serialized as the literal `'SessionIdSymbol'` so identity stays session-agnostic |
-| Computed | `computed()` | `deps` if given, else `fn.toString()` | Referential result equality only (no schema equivalence) |
-| Signal | `signal()` | `nanoid()` | Every call is unique — signals never dedup; `set` takes a plain value (functional update resolved by `store.setSignal`) |
-| Client document | `table.get(id)` backing query | RowQuery label `${table}.get:${id}` | First read seeds the default row via `store.commit(table.set(...))` with `skipRefresh: true` to avoid a reactive loop during render |
+| Kind            | Constructor                   | Identity (`def.hash`)                 | Notes                                                                                                                               |
+| --------------- | ----------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Db query        | `queryDb()`                   | `queryString + deps + extraDeps`      | `SessionIdSymbol` serialized as the literal `'SessionIdSymbol'` so identity stays session-agnostic                                  |
+| Computed        | `computed()`                  | `deps` if given, else `fn.toString()` | Default graph deep equality (no schema equivalence)                                                                                 |
+| Signal          | `signal()`                    | `nanoid()`                            | Every call is unique — signals never dedup; `set` takes a plain value (functional update resolved by `store.setSignal`)             |
+| Client document | `table.get(id)` backing query | RowQuery label `${table}.get:${id}`   | First read seeds the default row via `store.commit(table.set(...))` with `skipRefresh: true` to avoid a reactive loop during render |
 
 Db queries are two thunks: `queryInput$` builds the SQL and tracks
 dependencies (its equality compares query text + `deepEqual(bindValues)`;
 the result schema is deliberately not compared), and `results$` executes and
 decodes. Reactivity comes from `get(tableRef)` dependencies on the queried
 tables — query-builder queries set a single table eagerly; raw-SQL/function
-queries resolve tables lazily via `getTablesUsed`
+queries resolve tables on every execution via `getTablesUsed`, replacing the
+previous run's table dependencies and removing abandoned reverse edges
 (`db-query.ts:252,378-393`).
 
 Contextual (function-form) db queries whose builder is not introspectable on
@@ -92,7 +95,7 @@ this tree):
    `cachedExecute`. `ROLLBACK` (including `ROLLBACK TO` a savepoint) and
    changeset apply clear the whole cache, since neither reports which tables
    it touched; other transaction-control statements are ignored. This caches
-   *values*, not reactivity — a hot table with >200 distinct queries evicts
+   _values_, not reactivity — a hot table with >200 distinct queries evicts
    silently (flagged as provisional in code comments).
 
 ## Caching Substrate (`SqliteDbWrapper`)

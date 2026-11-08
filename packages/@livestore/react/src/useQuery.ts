@@ -11,7 +11,7 @@ import {
 } from '@livestore/framework-toolkit'
 import type { LiveQuery, Queryable, Store } from '@livestore/livestore'
 import type { LiveQueries } from '@livestore/livestore/internal'
-import { deepEqual, shouldNeverHappen } from '@livestore/utils'
+import { deepEqual, isDevEnv, shouldNeverHappen } from '@livestore/utils'
 
 import { useRcResource } from './useRcResource.ts'
 import { useStateRefWithReactiveInput } from './utils/useStateRefWithReactiveInput.ts'
@@ -79,7 +79,8 @@ export const useQueryRef = <TQueryable extends Queryable<any>>(
 
   const rcRefKey = React.useMemo(() => computeRcRefKey(store, normalized), [normalized, store])
 
-  const stackInfo = React.useMemo(() => captureStackInfo(), [])
+  // Stack capture is diagnostic-only and can dominate mounting large query lists in production.
+  const stackInfo = React.useMemo(() => (isDevEnv() ? captureStackInfo() : { frames: [] }), [])
 
   const { queryRcRef, span, otelContext } = useRcResource(
     store,

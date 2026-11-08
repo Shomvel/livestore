@@ -1,14 +1,38 @@
-import { describe, expect, it } from '@effect/vitest'
+import { describe, expect, it, vi } from '@effect/vitest'
 
 import { makeInMemoryAdapter } from '@livestore/adapter-web'
 import { OtelLiveDummy, UnknownError } from '@livestore/common'
 import { Effect, Fiber, type OtelTracer, type Scope, TestClock } from '@livestore/utils/effect'
 
-import { schema } from '../utils/tests/fixture.ts'
+import { events, schema, tables } from '../utils/tests/fixture.ts'
 import { StoreInternalsSymbol } from './store-types.ts'
 import { type RegistryStoreOptions, StoreRegistry, storeOptions } from './StoreRegistry.ts'
 
 describe('StoreRegistry', () => {
+  it('keeps concurrent store databases isolated when sharing the SQLite module', async () => {
+    const registry = new StoreRegistry()
+    try {
+      const stores = await Promise.all(
+        Array.from({ length: 10 }, (_, index) =>
+          registry.getOrLoadPromise(testStoreOptions({ storeId: `isolated-${index}` })),
+        ),
+      )
+      for (const [index, store] of stores.entries()) {
+        store.commit(events.todoCreated({ id: 'same-id', text: `store-${index}`, completed: false }))
+      }
+      for (const [index, store] of stores.entries()) {
+        expect(store.query(tables.todos)).toEqual([{ id: 'same-id', text: `store-${index}`, completed: false }])
+      }
+
+      await stores[0]!.shutdownPromise()
+      stores[1]!.commit(events.todoCompleted({ id: 'same-id' }))
+      expect(stores[1]!.query(tables.todos)[0]?.completed).toBe(true)
+      expect(stores[2]!.query(tables.todos)[0]?.completed).toBe(false)
+    } finally {
+      await registry.dispose()
+    }
+  })
+
   it('returns a promise when the store is loading', async () => {
     const storeRegistry = new StoreRegistry()
     const result = storeRegistry.getOrLoadPromise(testStoreOptions())
@@ -54,6 +78,30 @@ describe('StoreRegistry', () => {
 
     // Clean up
     await store.shutdownPromise()
+  })
+
+  it('uses the direct cache path only while a store is retained', async () => {
+    const storeRegistry = new StoreRegistry()
+    const options = testStoreOptions()
+    const store = await storeRegistry.getOrLoadPromise(options)
+    const release = storeRegistry.retain(options)
+    await Effect.runPromise(Effect.yieldNow)
+    const getOrLoadSpy = vi.spyOn(storeRegistry, 'getOrLoad')
+
+    try {
+      expect(storeRegistry.getOrLoadPromise(options)).toBe(store)
+      expect(storeRegistry.getOrLoadPromise(testStoreOptions({ unusedCacheTime: 1 }))).toBe(store)
+      expect(getOrLoadSpy).not.toHaveBeenCalled()
+
+      release()
+      await Effect.runPromise(Effect.yieldNow)
+
+      expect(storeRegistry.getOrLoadPromise(options)).toBe(store)
+      expect(getOrLoadSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      getOrLoadSpy.mockRestore()
+      await storeRegistry.dispose()
+    }
   })
 
   it('throws synchronously and rethrows on subsequent calls for sync failures', () => {
@@ -430,6 +478,53 @@ describe('StoreRegistry', () => {
         expect(cached).toBe(store)
 
         release()
+      }),
+    )
+
+    it.effect('evicts a previously cached store only after the last retain is released', () =>
+      Effect.gen(function* () {
+        const unusedCacheTime = 50
+        const services = yield* Effect.context<Scope.Scope | OtelTracer.OtelTracer>()
+        const registry = new StoreRegistry({ context: services, defaultOptions: { unusedCacheTime } })
+        const options = testStoreOptions()
+        const store = yield* Effect.promise(() => Promise.resolve(registry.getOrLoadPromise(options)))
+        const releaseFirst = registry.retain(options)
+        const releaseSecond = registry.retain(options)
+        yield* Effect.yieldNow
+
+        releaseFirst()
+        yield* TestClock.adjust(unusedCacheTime * 2)
+        expect(registry.getOrLoadPromise(options)).toBe(store)
+
+        releaseSecond()
+        yield* Effect.yieldNow
+        yield* TestClock.adjust(unusedCacheTime)
+
+        const nextStore = yield* Effect.promise(() => Promise.resolve(registry.getOrLoadPromise(options)))
+        expect(nextStore).not.toBe(store)
+      }),
+    )
+
+    it.effect('refreshes unusedCacheTime when an unretained cached store is read', () =>
+      Effect.gen(function* () {
+        const unusedCacheTime = 50
+        const services = yield* Effect.context<Scope.Scope | OtelTracer.OtelTracer>()
+        const registry = new StoreRegistry({ context: services, defaultOptions: { unusedCacheTime } })
+        const options = testStoreOptions()
+        const store = yield* registry.getOrLoad(options).pipe(Effect.scoped)
+        yield* Effect.yieldNow
+
+        yield* TestClock.adjust(40)
+        expect(registry.getOrLoadPromise(options)).toBe(store)
+        yield* Effect.yieldNow
+
+        yield* TestClock.adjust(40)
+        expect(registry.getOrLoadPromise(options)).toBe(store)
+        yield* Effect.yieldNow
+
+        yield* TestClock.adjust(unusedCacheTime)
+        const nextStore = yield* Effect.promise(() => Promise.resolve(registry.getOrLoadPromise(options)))
+        expect(nextStore).not.toBe(store)
       }),
     )
 

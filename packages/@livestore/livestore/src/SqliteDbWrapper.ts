@@ -14,7 +14,7 @@ import {
   SqliteError,
   sql,
 } from '@livestore/common'
-import { isDevEnv, LS_DEV } from '@livestore/utils'
+import { isDevEnv, LS_DEV, makeNoopSpan, NoopTracer } from '@livestore/utils'
 
 import QueryCache from './QueryCache.ts'
 
@@ -38,6 +38,7 @@ export class SqliteDbWrapper implements SqliteDb {
   private db: SqliteDb
   private otelTracer: otel.Tracer
   private otelRootSpanContext: otel.Context
+  private readonly noopSpan = makeNoopSpan()
   private tablesUsedStmt
   public debugInfo: MutableDebugInfo = emptyDebugInfo()
   /**
@@ -350,7 +351,7 @@ export class SqliteDbWrapper implements SqliteDb {
     )
   }
 
-  /** Runs `fn` in a span, or with a non-recording span when the caller traces the statement itself. */
+  /** Runs `fn` in a span, or directly with a non-recording span when tracing is explicitly disabled. */
   private withSpan<T>(
     traced: boolean,
     name: string,
@@ -358,9 +359,15 @@ export class SqliteDbWrapper implements SqliteDb {
     context: otel.Context,
     fn: (span: otel.Span) => T,
   ): T {
-    return traced === true
-      ? this.otelTracer.startActiveSpan(name, options, context, fn)
-      : fn(otel.trace.wrapSpanContext(otel.INVALID_SPAN_CONTEXT))
+    if (traced === false) {
+      return fn(otel.trace.wrapSpanContext(otel.INVALID_SPAN_CONTEXT))
+    }
+
+    if (this.otelTracer instanceof NoopTracer) {
+      return fn(this.noopSpan)
+    }
+
+    return this.otelTracer.startActiveSpan(name, options, context, fn)
   }
 
   export() {

@@ -93,6 +93,13 @@ the caller (`store.ts:926`; LS.SYS.STORE-R09).
 Telemetry: long-lived `LiveStore:commits`/`LiveStore:queries` spans plus a
 per-commit root span with links.
 
+For events producing at least 2,000 materializer statements, adjacent compatible
+plain `INSERT` or `INSERT OR REPLACE` statements can execute as multi-row SQL,
+chunked to at most 999 bound parameters. The SQL shape, bind arity and write-table
+set must match. Other SQL forms, smaller events and event boundaries remain
+uncombined. Materializer hashes use the original statements. The event's
+changeset, journal and savepoint boundaries remain unchanged.
+
 ## Lifecycle
 
 - Every public operation guards on `isShutdown` (`checkShutdown`).
@@ -140,6 +147,10 @@ RFC 0001, the implementation is the contract:
 - `getOrLoadPromise` returns synchronously for a cached store and a
   `Promise` otherwise (sync-or-Promise duality via `AsyncFiberError`,
   `StoreRegistry.ts:275-305`) — the basis of the React suspense contract.
+- Retained loaded stores have a direct lookup path guarded by the current
+  RcMap entry's identity and positive reference count. Unretained entries use
+  the ordinary RcMap path, preserving eviction and cached-error behavior.
+  Cache keys retain their initial `storeId` and precomputed hash.
 
 ## Open Design Questions
 

@@ -34,7 +34,7 @@ graph guarantees in [spec.md](../spec.md) §Graph Update Guarantees.
 ## Consequences
 
 - Every commit pays an eager refresh pass; cutoff (schema equivalence)
-  bounds downstream work — and `map` on a query disables that cutoff
-  (LS.SYS.STORE.RX-R05).
+  bounds downstream work. The original statement that `map` disables the
+  cutoff is superseded by [decision 0002](./0002-versioned-equality-cutoff.md).
 - No scheduler/microtask deferral exists; framework bindings integrate via
   subscription, not via the graph's timing.

@@ -47,6 +47,7 @@ export type Ref<T, TContext, TDebugRefreshReason extends DebugRefreshReason> = {
   meta?: unknown
   equal: (a: T, b: T) => boolean
   refreshes: number
+  resultVersion: number
 }
 
 export type Thunk<TResult, TContext, TDebugRefreshReason extends DebugRefreshReason> = {
@@ -63,6 +64,7 @@ export type Thunk<TResult, TContext, TDebugRefreshReason extends DebugRefreshRea
   meta?: unknown
   equal: (a: TResult, b: TResult) => boolean
   recomputations: number
+  resultVersion: number
 
   __getResult: any
 }
@@ -77,6 +79,8 @@ export type Effect<TDebugRefreshReason extends DebugRefreshReason> = {
   isDestroyed: boolean
   doEffect: (otelContext?: otel.Context, debugRefreshReason?: TDebugRefreshReason) => void
   sub: Set<Atom<any, TODO, TODO>>
+  dependencyVersions: Map<Atom<any, TODO, TODO>, number>
+  otelContext: otel.Context | undefined
   label?: string | undefined
   invocations: number
 }
@@ -227,6 +231,7 @@ export class ReactiveGraph<
       ...omitUndefineds({ label: options?.label, meta: options?.meta }),
       equal: options?.equal ?? deepEqual,
       refreshes: 0,
+      resultVersion: 0,
     }
 
     this.atoms.add(ref)
@@ -264,8 +269,8 @@ export class ReactiveGraph<
             this.currentDebugRefresh = localDebugRefresh
           }
 
-          // Reset previous subcomputations as we're about to re-add them as part of the `doEffect` call below
-          thunk.sub = new Set()
+          // Reset previous subcomputations as we're about to re-add them as part of the computation below
+          this.resetDependencies(thunk)
 
           const getAtom = (atom: Atom<T, TContext, TDebugRefreshReason>, otelContext: otel.Context) => {
             this.addEdge(thunk, atom)
@@ -285,7 +290,8 @@ export class ReactiveGraph<
             debugRefreshReason,
           )
 
-          const resultChanged = !thunk.equal(thunk.previousResult as T, result)
+          const resultChanged =
+            thunk.previousResult === NOT_REFRESHED_YET || !thunk.equal(thunk.previousResult as T, result)
 
           const debugInfoForAtom = {
             atom: serializeAtom(thunk, false),
@@ -300,7 +306,10 @@ export class ReactiveGraph<
           }
 
           thunk.isDirty = false
-          thunk.previousResult = result
+          if (resultChanged) {
+            thunk.previousResult = result
+            thunk.resultVersion++
+          }
           thunk.recomputations++
 
           if (neededCurrentRefresh === true && localDebugRefresh !== undefined) {
@@ -320,7 +329,7 @@ export class ReactiveGraph<
             })
           }
 
-          return result
+          return thunk.previousResult as T
         } else {
           return thunk.previousResult as T
         }
@@ -328,6 +337,7 @@ export class ReactiveGraph<
       sub: new Set(),
       super: new Set(),
       recomputations: 0,
+      resultVersion: 0,
       ...omitUndefineds({ label: options?.label, meta: options?.meta }),
       equal: options?.equal ?? deepEqual,
       __getResult: getResult,
@@ -385,12 +395,15 @@ export class ReactiveGraph<
       id: this.uniqueNodeId(),
       isDestroyed: false,
       doEffect: (otelContext, debugRefreshReason) => {
+        if (effect.invocations === 0) {
+          effect.otelContext = otelContext
+        }
         effect.invocations++
 
         // NOTE we're not tracking any debug refresh info for effects as they're tracked by the thunks they depend on
 
         // Reset previous subcomputations as we're about to re-add them as part of the `doEffect` call below
-        effect.sub = new Set()
+        this.resetDependencies(effect)
 
         const getAtom = (
           atom: Atom<any, TContext, TDebugRefreshReason>,
@@ -402,8 +415,17 @@ export class ReactiveGraph<
         }
 
         doEffect(getAtom as GetAtom, otelContext, debugRefreshReason)
+
+        // Snapshot versions only after successful execution so thrown effects remain eligible for retry.
+        const dependencyVersions = new Map<Atom<any, TODO, TODO>, number>()
+        for (const atom of effect.sub) {
+          dependencyVersions.set(atom, atom.resultVersion)
+        }
+        effect.dependencyVersions = dependencyVersions
       },
       sub: new Set(),
+      dependencyVersions: new Map(),
+      otelContext: undefined,
       ...omitUndefineds({ label: options?.label }),
       invocations: 0,
     }
@@ -435,10 +457,14 @@ export class ReactiveGraph<
   ) {
     const effectsToRefresh = new Set<Effect<TDebugRefreshReason>>()
     for (const [ref, val] of refs) {
+      const resultChanged = !ref.equal(ref.previousResult, val)
       ref.previousResult = val
       ref.refreshes++
 
-      markSuperCompDirtyRec(ref, effectsToRefresh)
+      if (resultChanged) {
+        ref.resultVersion++
+        markSuperCompDirtyRec(ref, effectsToRefresh)
+      }
     }
 
     if (options?.skipRefresh === true) {
@@ -475,7 +501,21 @@ export class ReactiveGraph<
 
       try {
         for (const effect of effectsToRefresh) {
-          effect.doEffect(options?.otelContext, options.debugRefreshReason)
+          let shouldRun = effect.invocations === 0
+          if (shouldRun === false) {
+            for (const atom of effect.sub) {
+              const previousVersion = effect.dependencyVersions.get(atom)
+              compute(atom, effect.otelContext ?? options.otelContext, options.debugRefreshReason)
+              if (previousVersion !== atom.resultVersion) {
+                shouldRun = true
+                break
+              }
+            }
+          }
+
+          if (shouldRun) {
+            effect.doEffect(options.otelContext, options.debugRefreshReason)
+          }
         }
       } finally {
         this.currentDebugRefresh = previousDebugRefresh
@@ -519,6 +559,13 @@ export class ReactiveGraph<
     for (const cb of this.refreshCallbacks) {
       cb()
     }
+  }
+
+  private resetDependencies(superComp: Thunk<any, TContext, TDebugRefreshReason> | Effect<TDebugRefreshReason>) {
+    for (const subComp of superComp.sub) {
+      subComp.super.delete(superComp)
+    }
+    superComp.sub = new Set()
   }
 
   addEdge(
@@ -583,7 +630,7 @@ export class ReactiveGraph<
 
 const compute = <T>(
   atom: Atom<T, unknown, any>,
-  otelContext: otel.Context,
+  otelContext: otel.Context | undefined,
   debugRefreshReason: DebugRefreshReason | undefined,
 ): T => {
   // const __getResult = atom._tag === 'thunk' ? atom.__getResult.toString() : ''

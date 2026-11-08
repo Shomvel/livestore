@@ -84,7 +84,8 @@ export const useStore = <
   // an issue with the default 60s cache time, but it becomes an issue when `unusedCacheTime` is
   // configured to values less than ~100ms.
   // See https://github.com/livestorejs/livestore/issues/916
-  React.useEffect(() => storeRegistry.retain(options), [storeRegistry, options])
+  // oxlint-disable-next-line react/exhaustive-deps -- store retention is keyed only by registry and storeId
+  React.useEffect(() => storeRegistry.retain(options), [storeRegistry, options.storeId])
 
   return withReactApi(store)
 }
@@ -116,6 +117,9 @@ export type ReactApi = {
 export const withReactApi = <TSchema extends LiveStoreSchema, TContext = {}>(
   store: Store<TSchema, TContext>,
 ): Store<TSchema, TContext> & ReactApi => {
+  const cachedApi = reactApiCache.get(store)
+  if (cachedApi !== undefined) return store as Store<TSchema, TContext> & ReactApi
+
   // @ts-expect-error TODO properly implement this
   store.useQuery = (queryable) => useQuery(queryable, { store })
 
@@ -125,5 +129,10 @@ export const withReactApi = <TSchema extends LiveStoreSchema, TContext = {}>(
   // @ts-expect-error TODO properly implement this
   store.useSyncStatus = () => useSyncStatus({ store })
 
-  return store as Store<TSchema, TContext> & ReactApi
+  const reactStore = store as Store<TSchema, TContext> & ReactApi
+  reactApiCache.set(store, reactStore)
+  return reactStore
 }
+
+// Keep method identities stable without extending the Store lifetime beyond its existing users.
+const reactApiCache = new WeakMap<Store<any, any>, ReactApi>()
